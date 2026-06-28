@@ -1,0 +1,18 @@
+# Compiler files
+cache/
+out/
+
+# Broadcast logs (deployment artifacts)
+broadcast/
+
+# Dotenv file
+.env
+
+# Dependencies
+/lib/
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude

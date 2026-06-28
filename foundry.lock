@@ -1,0 +1,29 @@
+{
+  "lib/bundler3": {
+    "rev": "93680c39129007e9773fa39847eb72e1b4ebd677"
+  },
+  "lib/forge-std": {
+    "rev": "620536fa5277db4e3fd46772d5cbc1ea0696fb43"
+  },
+  "lib/metamorpho": {
+    "tag": {
+      "name": "v1.0.0",
+      "rev": "f5faa9c21b1396c291b471a6a5ad9407d23486a9"
+    }
+  },
+  "lib/midnight": {
+    "rev": "e31431f6e56d5604d870cd4e5f75c8a01dba7b69"
+  },
+  "lib/morpho-blue": {
+    "tag": {
+      "name": "v1.0.0",
+      "rev": "55d2d99304fb3fb930c688462ae2ccabb1d533ad"
+    }
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "5fd1781b1454fd1ef8e722282f86f9293cacf256"
+  },
+  "lib/vault-v2": {
+    "rev": "5fecc5b83a0cb12997007416764360c4e367f273"
+  }
+}

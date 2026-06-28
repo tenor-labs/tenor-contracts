@@ -1,0 +1,18 @@
+[submodule "lib/morpho-blue"]
+	path = lib/morpho-blue
+	url = https://github.com/morpho-org/morpho-blue
+[submodule "lib/bundler3"]
+	path = lib/bundler3
+	url = https://github.com/morpho-org/bundler3
+[submodule "lib/vault-v2"]
+	path = lib/vault-v2
+	url = https://github.com/morpho-org/vault-v2
+[submodule "lib/midnight"]
+	path = lib/midnight
+	url = https://github.com/morpho-org/midnight
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts

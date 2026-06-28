@@ -1,0 +1,39 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+auto_detect_solc = true
+evm_version = "osaka"
+via_ir = true
+optimizer = true
+optimizer_runs = 800
+bytecode_hash = "none"
+fs_permissions = [{ access = "read", path = "./test/bin" }, { access = "read", path = "./out" }]
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "@midnight/=lib/midnight/src/",
+    "@oracles/=src/oracles/",
+    "@gates/=src/gates/",
+    "@factories/=src/factories/",
+    "@callbacks/=src/callbacks/",
+    "@policies/=src/ratifiers/policies/",
+    "@ratifiers/=src/ratifiers/",
+    "@vault-v2/=lib/vault-v2/src/",
+    "@bundler3/=lib/bundler3/src/",
+    "@morphoBlue/=lib/morpho-blue/src/",
+    "forge-std/=lib/forge-std/src/"
+]
+
+[profile.default.optimizer_details]
+yul = true
+
+[profile.default.optimizer_details.yul_details]
+stack_allocation = true
+
+[profile.default.fmt]
+wrap_comments = true
+
+[profile.test]
+verbosity = 3
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
