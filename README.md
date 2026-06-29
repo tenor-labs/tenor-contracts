@@ -153,6 +153,7 @@ When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.
 ┌─────────┐  setIsAuthorized(ratifier)  ┌──────────────┐
 │  User   │────────────────────────────→│ Morpho       │  stores isAuthorized[user][ratifier]
 │         │                             │ Midnight     │
+│         │                             └──────────────┘
 │         │  setParams()         ┌──────────┐
 │         │─────────────────────→│ Ratifier │  stores UserMigrationParams per key
 └─────────┘                      └──────────┘
@@ -160,7 +161,7 @@ When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.
 ┌──────────────┐  take(userOffer, …)  ┌──────────────┐  checks isAuthorized[maker][ratifier]
 │ Counterparty │─────────────────────→│ Morpho       │──┐
 └──────────────┘                      │ Midnight     │  │ isRatified(offer, ratifierData)
-                                       └──────┬───────┘  ▼
+                                      └───────┬──────┘  ▼
                                               │     ┌──────────┐  validates fees, window,
                                               │     │ Ratifier │  maturity, rate
                                               │     └──────────┘  (reverts if invalid)
@@ -241,6 +242,15 @@ src/
 ```
 
 ---
+
+## Audit Scope
+
+The following were **outside the formal scope** of the security audits:
+
+- The clamp contracts in `src/router/clamps/` — optional, opt-in per action and inactive unless an `action.clamp` address is supplied.
+- `CallbackFeeAdjuster` — fees are disabled at launch (`feeAdjuster` is pinned to `address(0)`) and this contract is not instantiated by any deployment.
+
+`TakeMathLib` is shared routing math used on the core take path and was reviewed in scope.
 
 ## Dependencies
 
