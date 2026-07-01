@@ -38,17 +38,15 @@ library CollateralTransferLib {
         collateralTokens = new address[](collateralsLength);
         collateralAmounts = new uint256[](collateralsLength);
 
-        bool isFinalFill = sourceDebtBefore == repaidUnits;
-
         for (uint256 i = 0; i < collateralsLength;) {
             collateralTokens[i] = sourceMarket.collateralParams[i].token;
             (bool found, uint256 targetCollateralIndex) = targetMarket.findCollateral(collateralTokens[i]);
 
             if (found) {
-                uint256 sourceCollateralBalance = morphoMidnight.collateral(sourceMarketId, borrower, i);
-                uint256 collateralToTransfer = isFinalFill
-                    ? sourceCollateralBalance
-                    : sourceCollateralBalance.mulDivDown(repaidUnits, sourceDebtBefore);
+                uint256 collateralToTransfer = morphoMidnight.collateral(sourceMarketId, borrower, i);
+                if (sourceDebtBefore != repaidUnits) {
+                    collateralToTransfer = collateralToTransfer.mulDivDown(repaidUnits, sourceDebtBefore);
+                }
                 if (collateralToTransfer > 0) {
                     morphoMidnight.withdrawCollateral(sourceMarket, i, collateralToTransfer, borrower, address(this));
                     IERC20(collateralTokens[i]).forceApprove(address(morphoMidnight), collateralToTransfer);
