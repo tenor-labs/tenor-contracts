@@ -294,7 +294,7 @@ contract MigrationRatifierTest is Test {
     }
 
     function callRatify(Offer calldata offer, bytes calldata ratifierData) external view returns (bytes32) {
-        return r.isRatified(offer, ratifierData);
+        return r.isRatified(offer, ratifierData, address(0));
     }
 
     function _ratifyOk(Offer memory offer, bytes memory ratifierData) internal view returns (bool) {
