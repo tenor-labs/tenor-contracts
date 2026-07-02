@@ -37,13 +37,13 @@ contract PausableStaticRatePolicyTest is Test {
         uint256 renewalStart = block.timestamp;
 
         // Unpaused by default — getRate works
-        policy.getRate(bytes32(0), bytes32(0), renewalStart, address(2), 0, 0, false);
+        policy.getRate(bytes32(0), bytes32(0), renewalStart, address(2), address(0), 0, 0, false);
 
         // Pause
         vm.prank(pauser);
         policy.pause();
         vm.expectRevert(IPausableInterestRatePolicy.IsPaused.selector);
-        policy.getRate(bytes32(0), bytes32(0), renewalStart, address(2), 0, 0, false);
+        policy.getRate(bytes32(0), bytes32(0), renewalStart, address(2), address(0), 0, 0, false);
 
         // Double-pause reverts
         vm.prank(pauser);
@@ -52,7 +52,7 @@ contract PausableStaticRatePolicyTest is Test {
 
         // Unpause (owner only)
         policy.unpause();
-        policy.getRate(bytes32(0), bytes32(0), renewalStart, address(2), 0, 0, false);
+        policy.getRate(bytes32(0), bytes32(0), renewalStart, address(2), address(0), 0, 0, false);
 
         // Double-unpause reverts
         vm.expectRevert(IPausableInterestRatePolicy.NotPaused.selector);
@@ -89,19 +89,23 @@ contract PausableStaticRatePolicyTest is Test {
 
     function test_getRateStillInterpolates() public {
         // At renewalStart = block.timestamp, elapsed = 0, should return RATE_A
-        uint256 rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp, address(0), 0, 0, false);
+        uint256 rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp, address(0), address(0), 0, 0, false);
         assertEq(rate, RATE_A);
 
         // At renewalStart = block.timestamp - DURATION_B, elapsed = DURATION_B, should return RATE_B
-        rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp - DURATION_B, address(0), 0, 0, false);
+        rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp - DURATION_B, address(0), address(0), 0, 0, false);
         assertEq(rate, RATE_B);
 
         // Midpoint: elapsed = DURATION_B / 2, should return midpoint rate
-        rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp - DURATION_B / 2, address(0), 0, 0, false);
+        rate = policy.getRate(
+            bytes32(0), bytes32(0), block.timestamp - DURATION_B / 2, address(0), address(0), 0, 0, false
+        );
         assertEq(rate, (RATE_A + RATE_B) / 2);
 
         // Past the last point: elapsed > DURATION_B, should clamp to RATE_B
-        rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp - DURATION_B * 2, address(0), 0, 0, false);
+        rate = policy.getRate(
+            bytes32(0), bytes32(0), block.timestamp - DURATION_B * 2, address(0), address(0), 0, 0, false
+        );
         assertEq(rate, RATE_B);
     }
 
@@ -156,6 +160,6 @@ contract PausableStaticRatePolicyTest is Test {
         vm.prank(pauser);
         policy.pause();
         vm.expectRevert(IPausableInterestRatePolicy.IsPaused.selector);
-        policy.getRate(srcId, tgtId, c, b, d, e, false);
+        policy.getRate(srcId, tgtId, c, b, address(0), d, e, false);
     }
 }

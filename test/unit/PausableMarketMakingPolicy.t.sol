@@ -36,13 +36,13 @@ contract PausableMarketMakingPolicyTest is Test {
         vm.warp(1_000_000);
 
         // Unpaused → getRate works
-        policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, true);
 
         // Pause
         vm.prank(pauser);
         policy.pause();
         vm.expectRevert(IPausableInterestRatePolicy.IsPaused.selector);
-        policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, true);
 
         // Double-pause reverts
         vm.prank(pauser);
@@ -52,7 +52,7 @@ contract PausableMarketMakingPolicyTest is Test {
         // Unpause (owner only)
         vm.prank(owner);
         policy.unpause();
-        policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, true);
 
         // Double-unpause reverts
         vm.prank(owner);

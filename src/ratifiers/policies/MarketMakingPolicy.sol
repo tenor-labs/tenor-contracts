@@ -66,6 +66,7 @@ contract MarketMakingPolicy is IMarketMakingPolicy {
         bytes32 targetTenorMarketId,
         uint256, /* renewalPeriodStart */
         address user,
+        address, /* taker */
         uint256 sourceMaturity,
         uint256 targetMaturity,
         bool userIsBuyer

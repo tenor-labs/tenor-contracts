@@ -23,6 +23,7 @@ contract PausableStaticRatePolicy is StaticRatePolicy, PausableBase {
         bytes32 targetTenorMarketId,
         uint256 renewalPeriodStart,
         address user,
+        address taker,
         uint256 sourceMaturity,
         uint256 targetMaturity,
         bool userIsBuyer
@@ -32,6 +33,7 @@ contract PausableStaticRatePolicy is StaticRatePolicy, PausableBase {
             targetTenorMarketId,
             renewalPeriodStart,
             user,
+            taker,
             sourceMaturity,
             targetMaturity,
             userIsBuyer

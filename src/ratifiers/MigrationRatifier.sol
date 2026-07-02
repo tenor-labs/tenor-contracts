@@ -99,7 +99,12 @@ contract MigrationRatifier is BaseMigrationRatifier {
     /// @notice Midnight ratification entry point; reverts on any policy breach, returns CALLBACK_SUCCESS otherwise.
     /// @dev `ratifierData` must be `abi.encode(bytes32 sourceTenorMarketId, bytes32 targetTenorMarketId)`; `_ratify`
     /// validates `offer.maker`'s params for that tuple. Midnight only calls this on ratifiers the maker authorized.
-    function isRatified(Offer memory offer, bytes memory ratifierData, address) external view virtual returns (bytes32) {
+    function isRatified(Offer memory offer, bytes memory ratifierData, address taker)
+        external
+        view
+        virtual
+        returns (bytes32)
+    {
         if (ratifierData.length != 64) revert InvalidRatifierData();
         (bytes32 src, bytes32 tgt) = abi.decode(ratifierData, (bytes32, bytes32));
         // Make-on-behalf settlement guards (the user is the offer maker):
@@ -108,7 +113,7 @@ contract MigrationRatifier is BaseMigrationRatifier {
         // Confine the offer to the reserved migration-group namespace (see MIGRATION_GROUP_HEADER).
         if ((offer.group & MIGRATION_GROUP_HEADER_MASK) != MIGRATION_GROUP_HEADER) revert InvalidGroup();
         UserMigrationParams memory params = userParams[offer.maker][offer.callback][src][tgt];
-        _ratify(offer.maker, offer.callback, offer.callbackData, offer, src, tgt, params);
+        _ratify(offer.maker, taker, offer.callback, offer.callbackData, offer, src, tgt, params);
         return CALLBACK_SUCCESS;
     }
 

@@ -31,7 +31,7 @@ contract ReentrantPolicy is IInterestRatePolicy {
         reentrantCalldata = data;
     }
 
-    function getRate(bytes32, bytes32, uint256, address, uint256, uint256, bool)
+    function getRate(bytes32, bytes32, uint256, address, address, uint256, uint256, bool)
         external
         view
         override
