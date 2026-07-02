@@ -54,7 +54,7 @@ abstract contract ClampFuzzFixtures is Test {
     /// @notice Build the (maxUnits, maxAssets) tuple for an Offer.
     /// @dev Whether `maxAssets` is interpreted as buyer- or seller-side is determined by the
     ///      offer's `buy` flag at call site, not encoded here.
-    function _denomFields(uint128 capacity, uint8 denom) internal pure returns (uint256 maxUnits, uint256 maxAssets) {
+    function _denomFields(uint128 capacity, uint8 denom) internal pure returns (uint128 maxUnits, uint128 maxAssets) {
         if (denom == DENOM_ASSETS) return (0, capacity);
         return (capacity, 0);
     }

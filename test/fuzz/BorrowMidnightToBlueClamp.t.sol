@@ -285,7 +285,7 @@ contract BorrowMidnightToBlueClampFuzzTest is ClampFuzzFixtures, Fixtures {
             targetMarketParams: targetMarketParams, feeRate: callbackFeeRate, feeRecipient: feeRecipient
         });
 
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         offer = Offer({
             market: testMarket,
             buy: true,
@@ -482,7 +482,7 @@ contract BorrowMidnightToBlueClampFuzzTest is ClampFuzzFixtures, Fixtures {
         {
             uint256 callbackFeeRate = _boundCallbackFeeRateMidnightToBlue(feeRateSeed);
             uint256 ttm = _boundTimeToMaturity(ttmSeed);
-            uint256 consumedAmount = uint256(offerCapacity) * consumedPercent / 100;
+            uint128 consumedAmount = uint128(uint256(offerCapacity) * consumedPercent / 100);
 
             bytes32 group = keccak256(
                 abi.encodePacked(
@@ -546,7 +546,7 @@ contract BorrowMidnightToBlueClampFuzzTest is ClampFuzzFixtures, Fixtures {
             }
 
             // SELL offer from counterparty (counterparty is maker/seller)
-            (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+            (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
             offer = Offer({
                 market: testMarket,
                 buy: false,

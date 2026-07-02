@@ -303,7 +303,7 @@ contract LendVaultToMidnightClampFuzzTest is ClampFuzzFixtures {
         _setupLenderWithVaultShares(freshLender, snapshotShares, vaultLiquidity);
 
         // BUY offer on target market (migrate vault shares to Midnight lending)
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: customTarget,
             buy: true,
@@ -432,7 +432,7 @@ contract LendVaultToMidnightClampFuzzTest is ClampFuzzFixtures {
 
         _setupLenderWithVaultShares(freshLender, snapshotShares, vaultLiquidity);
 
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: customTarget,
             buy: true,

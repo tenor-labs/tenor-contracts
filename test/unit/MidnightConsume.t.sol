@@ -14,7 +14,7 @@ contract MidnightSetConsumedTest is Test {
     address internal unauthorized;
 
     bytes32 internal constant GROUP = keccak256("test-group");
-    uint256 internal constant AMOUNT = 100e18;
+    uint128 internal constant AMOUNT = 100e18;
 
     function setUp() public {
         user = makeAddr("User");
@@ -83,10 +83,10 @@ contract MidnightSetConsumedTest is Test {
     function test_setConsumed_maxCancelsAll() public {
         vm.startPrank(user);
         midnight.setConsumed(GROUP, AMOUNT, user);
-        midnight.setConsumed(GROUP, type(uint256).max, user);
+        midnight.setConsumed(GROUP, type(uint128).max, user);
         vm.stopPrank();
 
-        assertEq(midnight.consumed(user, GROUP), type(uint256).max);
+        assertEq(midnight.consumed(user, GROUP), type(uint128).max);
     }
 
     function test_setConsumed_separateGroups() public {
@@ -114,7 +114,7 @@ contract MidnightSetConsumedTest is Test {
         assertEq(midnight.consumed(user2, GROUP), AMOUNT * 2);
     }
 
-    function testFuzz_setConsumed(address onBehalf, bytes32 group, uint256 amount) public {
+    function testFuzz_setConsumed(address onBehalf, bytes32 group, uint128 amount) public {
         vm.assume(onBehalf != address(0));
 
         vm.prank(onBehalf);

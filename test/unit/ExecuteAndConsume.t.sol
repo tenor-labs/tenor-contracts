@@ -325,7 +325,7 @@ contract ExecuteAndConsumeTest is Fixtures {
 
     function test_preExistingConsumed_additive() public {
         bytes32 consumeGroup = keccak256("limitOrder4");
-        uint256 preExisting = 20e18;
+        uint128 preExisting = 20e18;
 
         vm.prank(taker);
         midnight.setConsumed(consumeGroup, preExisting, taker);

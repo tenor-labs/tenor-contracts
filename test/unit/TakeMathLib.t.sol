@@ -344,7 +344,7 @@ contract TakeMathLibUnitTest is ClampFuzzFixtures {
     }
 
     /// @dev Build an offer with maxUnits denomination.
-    function _offerUnits(address _maker, bool buy, uint16 tick, bytes32 group, uint256 maxUnits)
+    function _offerUnits(address _maker, bool buy, uint16 tick, bytes32 group, uint128 maxUnits)
         internal
         view
         returns (Offer memory)
@@ -354,7 +354,7 @@ contract TakeMathLibUnitTest is ClampFuzzFixtures {
 
     /// @dev Build an offer with maxAssets denomination. The offer's `buy` flag fixes whether
     ///      `maxAssets` is interpreted as buyer- or seller-side (BUY ⇒ buyerAssets, SELL ⇒ sellerAssets).
-    function _offerAssets(address _maker, bool buy, uint16 tick, bytes32 group, uint256 maxAssets)
+    function _offerAssets(address _maker, bool buy, uint16 tick, bytes32 group, uint128 maxAssets)
         internal
         view
         returns (Offer memory)
@@ -368,8 +368,8 @@ contract TakeMathLibUnitTest is ClampFuzzFixtures {
         uint16 tick,
         bytes32 group,
         bool reduceOnly,
-        uint256 maxUnits,
-        uint256 maxAssets
+        uint128 maxUnits,
+        uint128 maxAssets
     ) internal view returns (Offer memory) {
         return Offer({
             market: market,
@@ -449,7 +449,7 @@ contract TakeMathLibUnitTest is ClampFuzzFixtures {
     ///         so sellerAssets only applies to SELL offers.)
     function testFuzz_getOfferRemaining_maxSellerAssets_safety(uint16 tickSeed, uint64 capacitySeed) public {
         uint16 tick = _boundTick(tickSeed);
-        uint256 capacity = bound(capacitySeed, 1, type(uint64).max);
+        uint128 capacity = uint128(bound(capacitySeed, 1, type(uint64).max));
 
         Offer memory offer = _offerAssets(maker, false, tick, _uniqueGroup(), capacity);
 
@@ -466,7 +466,7 @@ contract TakeMathLibUnitTest is ClampFuzzFixtures {
     /// @notice CLAMP-1 safety: same for BUY offers with buyerAssets-denominated capacity.
     function testFuzz_getOfferRemaining_maxBuyerAssets_safety(uint16 tickSeed, uint64 capacitySeed) public {
         uint16 tick = _boundTick(tickSeed);
-        uint256 capacity = bound(capacitySeed, 1, type(uint64).max);
+        uint128 capacity = uint128(bound(capacitySeed, 1, type(uint64).max));
 
         Offer memory offer = _offerAssets(maker, true, tick, _uniqueGroup(), capacity);
 
@@ -509,11 +509,11 @@ contract TakeMathLibUnitTest is ClampFuzzFixtures {
         assertEq(result, type(uint128).max);
     }
 
-    /// @notice BUY offer with maxAssets == type(uint256).max and a positive buyer price: remainingAssets
-    ///         reaches max and feeds mulDivDownInverse(target == max). The early-return saturates the
-    ///         capacity instead of reverting on target + 1, which would DoS the whole routing batch.
+    /// @notice BUY offer with maxAssets == type(uint128).max (the maximum representable cap) and a positive
+    ///         buyer price: the resulting remainingAssets feeds mulDivDownInverse without reverting, which
+    ///         would otherwise DoS the whole routing batch.
     function test_getOfferRemaining_maxBuyerAssets_maxUint_doesNotRevert() public {
-        Offer memory offer = _offerAssets(maker, true, 5028, _uniqueGroup(), type(uint256).max);
+        Offer memory offer = _offerAssets(maker, true, 5028, _uniqueGroup(), type(uint128).max);
         assertGt(harness.buyerPrice(midnight, marketId, offer), 0, "precondition: buyerPrice > 0");
 
         uint256 result = harness.getOfferRemaining(midnight, offer, marketId);

@@ -6,6 +6,7 @@ import {CoreAdapter} from "@bundler3/adapters/CoreAdapter.sol";
 import {TenorRouter, ExecuteParams, Action} from "../router/TenorRouter.sol";
 import {RouterLib} from "../libraries/RouterLib.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
+import {UtilsLib as MidnightUtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ITenorRouter} from "../router/interfaces/ITenorRouter.sol";
 import {ITenorRouterAdapter} from "./interfaces/ITenorRouterAdapter.sol";
@@ -45,7 +46,7 @@ abstract contract TenorRouterAdapterBase is TenorRouter, CoreAdapter, ITenorRout
         uint8 fillIndex = _fillIndex(params.fillAxis, actions, initiator);
         uint256 newConsumed = _MORPHO_MIDNIGHT.consumed(initiator, consumeGroup) + rawTotals[fillIndex];
         if (newConsumed > maxConsumed) revert ConsumedCapExceeded(newConsumed, maxConsumed);
-        _MORPHO_MIDNIGHT.setConsumed(consumeGroup, newConsumed, initiator);
+        _MORPHO_MIDNIGHT.setConsumed(consumeGroup, MidnightUtilsLib.toUint128(newConsumed), initiator);
         return (totals[0], totals[1], totals[2]);
     }
 

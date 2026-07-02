@@ -363,7 +363,7 @@ contract LendMidnightToVaultClampFuzzTest is ClampFuzzFixtures {
     ) internal returns (Offer memory o) {
         uint8 denom = _boundDenomination(uint8(packed >> 8));
         offerCapacity = _boundOfferCapacity(offerCapacity, denom);
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         o.market = obl;
         o.maker = maker;
         o.start = block.timestamp;

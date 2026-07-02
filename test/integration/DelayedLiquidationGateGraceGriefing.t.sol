@@ -174,7 +174,7 @@ contract Test_GraceGriefAttack is Test {
         o.callbackData = abi.encode(uint256(0), (UNITS * 1e18) / LLTV + 1e18);
         o.receiverIfMakerIsSeller = address(borrowerCallback);
         o.ratifier = address(ratifier);
-        o.maxUnits = UNITS;
+        o.maxUnits = uint128(UNITS);
     }
 
     function test_lender_can_grief_borrower_via_take_callback() public {

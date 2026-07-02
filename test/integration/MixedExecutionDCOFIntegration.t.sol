@@ -497,7 +497,7 @@ contract MixedExecutionDCOFIntegrationTest is MigrationRatifierTestBase {
         uint256 actualSpotSA = (spotUnits * TickLib.tickToPrice(tick)) / WAD;
         uint256 nextConsumed = midnight.consumed(borrower, group) + actualSpotSA;
         vm.prank(borrower);
-        midnight.setConsumed(group, nextConsumed, borrower);
+        midnight.setConsumed(group, uint128(nextConsumed), borrower);
 
         // Spot-side pull pro-rated against the SHARED denominator.
         uint256 spotPull = _expectedDcofPull(collateralAmount, actualSpotSA, totalCommit);
