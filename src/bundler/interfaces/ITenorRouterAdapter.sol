@@ -36,7 +36,7 @@ interface ITenorRouterAdapter is ITenorRouter {
     /// @param actions Per-action payloads (`MidnightTakeData`).
     /// @param consumeGroup Caller's self-limit group to increment.
     /// @param maxConsumed Final cap on `consumed[initiator][consumeGroup]` after the write;
-    ///        `type(uint256).max` disables.
+    ///        `type(uint128).max` disables.
     /// @return buyerAssets Total buyer-side asset flow across the batch (post-fee).
     /// @return sellerAssets Total seller-side asset flow across the batch (post-fee).
     /// @return units Total market units filled across the batch.
@@ -44,6 +44,6 @@ interface ITenorRouterAdapter is ITenorRouter {
         ExecuteParams calldata params,
         Action[] calldata actions,
         bytes32 consumeGroup,
-        uint256 maxConsumed
+        uint128 maxConsumed
     ) external returns (uint256 buyerAssets, uint256 sellerAssets, uint256 units);
 }

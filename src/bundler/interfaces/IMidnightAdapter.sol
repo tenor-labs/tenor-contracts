@@ -60,10 +60,10 @@ interface IMidnightAdapter is IFlashLoanCallback {
 
     /// @notice Sets the consumed amount for an offer group on Morpho Midnight on behalf of the initiator.
     /// @dev Used for atomic cancel operations (cancel + withdraw, cancel + disable auto-renewal). Passing
-    ///      `type(uint256).max` cancels all offers in the group.
+    ///      `type(uint128).max` cancels all offers in the group.
     /// @param group The offer group to set consumed amount for.
     /// @param amount The new consumed amount (must be >= current consumed amount).
-    function midnightSetConsumed(bytes32 group, uint256 amount) external;
+    function midnightSetConsumed(bytes32 group, uint128 amount) external;
 
     /// @notice Triggers a flash loan on Morpho Midnight.
     /// @dev The flash-loaned tokens land on this adapter; the reenter actions in `data` must consume (and repay)

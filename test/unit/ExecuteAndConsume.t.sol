@@ -244,7 +244,7 @@ contract ExecuteAndConsumeTest is Fixtures {
         Action[] memory actions,
         bytes32 consumeGroup
     ) internal {
-        _callExecuteAndConsume(initiatorAddr, params, actions, consumeGroup, type(uint256).max);
+        _callExecuteAndConsume(initiatorAddr, params, actions, consumeGroup, type(uint128).max);
     }
 
     function _callExecuteAndConsume(
@@ -252,7 +252,7 @@ contract ExecuteAndConsumeTest is Fixtures {
         ExecuteParams memory params,
         Action[] memory actions,
         bytes32 consumeGroup,
-        uint256 maxConsumed
+        uint128 maxConsumed
     ) internal {
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
@@ -312,7 +312,7 @@ contract ExecuteAndConsumeTest is Fixtures {
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
             to: address(adapter),
-            data: abi.encodeCall(adapter.executeAndConsume, (params, actions, consumeGroup, type(uint256).max)),
+            data: abi.encodeCall(adapter.executeAndConsume, (params, actions, consumeGroup, type(uint128).max)),
             value: 0,
             skipRevert: false,
             callbackHash: bytes32(0)
@@ -500,7 +500,7 @@ contract ExecuteAndConsumeTest is Fixtures {
 
         vm.prank(taker);
         vm.expectRevert();
-        adapter.executeAndConsume(params, actions, keccak256("group"), type(uint256).max);
+        adapter.executeAndConsume(params, actions, keccak256("group"), type(uint128).max);
     }
 
     function test_revert_routeFails_consumedUnchanged() public {
@@ -515,7 +515,7 @@ contract ExecuteAndConsumeTest is Fixtures {
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
             to: address(adapter),
-            data: abi.encodeCall(adapter.executeAndConsume, (params, actions, consumeGroup, type(uint256).max)),
+            data: abi.encodeCall(adapter.executeAndConsume, (params, actions, consumeGroup, type(uint128).max)),
             value: 0,
             skipRevert: false,
             callbackHash: bytes32(0)
@@ -544,7 +544,7 @@ contract ExecuteAndConsumeTest is Fixtures {
         Call[] memory calls = new Call[](1);
         calls[0] = Call({
             to: address(adapter),
-            data: abi.encodeCall(adapter.executeAndConsume, (params, actions, keccak256("ro"), type(uint256).max)),
+            data: abi.encodeCall(adapter.executeAndConsume, (params, actions, keccak256("ro"), type(uint128).max)),
             value: 0,
             skipRevert: false,
             callbackHash: bytes32(0)
@@ -743,7 +743,7 @@ contract ExecuteAndConsumeTest is Fixtures {
     ///      instead of silently ending above the intended aggregate.
     function test_revert_capExceeded_frontRunFill() public {
         bytes32 consumeGroup = keccak256("capFrontRun");
-        uint256 cap = 100e18;
+        uint128 cap = 100e18;
 
         // Front-run: 70e18 lands in the group before the batch executes.
         vm.prank(taker);
@@ -761,7 +761,7 @@ contract ExecuteAndConsumeTest is Fixtures {
 
     function test_capExact_passes() public {
         bytes32 consumeGroup = keccak256("capExact");
-        uint256 cap = 100e18;
+        uint128 cap = 100e18;
 
         vm.prank(taker);
         midnight.setConsumed(consumeGroup, 70e18, taker);

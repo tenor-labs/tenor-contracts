@@ -7,7 +7,6 @@ import {IBundler3} from "@bundler3/interfaces/IBundler3.sol";
 import {UtilsLib} from "@bundler3/libraries/UtilsLib.sol";
 import {IMidnight, Market} from "@midnight/interfaces/IMidnight.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
-import {UtilsLib as MidnightUtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {CALLBACK_SUCCESS} from "@midnight/libraries/ConstantsLib.sol";
 import {IMidnightAdapter} from "./interfaces/IMidnightAdapter.sol";
 
@@ -109,8 +108,8 @@ abstract contract MidnightAdapterBase is CoreAdapter, IMidnightAdapter {
     }
 
     /// @inheritdoc IMidnightAdapter
-    function midnightSetConsumed(bytes32 group, uint256 amount) external onlyBundler3 {
-        MORPHO_MIDNIGHT.setConsumed(group, MidnightUtilsLib.toUint128(amount), initiator());
+    function midnightSetConsumed(bytes32 group, uint128 amount) external onlyBundler3 {
+        MORPHO_MIDNIGHT.setConsumed(group, amount, initiator());
     }
 
     /// @inheritdoc IMidnightAdapter
