@@ -306,7 +306,7 @@ contract LendMidnightRenewalClampFuzzTest is ClampFuzzFixtures {
         midnight.setIsAuthorized(address(lendCallback), true, freshLender);
         vm.stopPrank();
 
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         offer = Offer({
             market: customTarget,
             buy: true,

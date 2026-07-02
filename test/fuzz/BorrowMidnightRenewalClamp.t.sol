@@ -302,7 +302,7 @@ contract BorrowMidnightRenewalClampFuzzTest is ClampFuzzFixtures {
             });
 
             // SELL offer on target market (borrower sells future debt = borrow renewal)
-            (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+            (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
             offer = Offer({
                 market: customTarget,
                 buy: false,
@@ -452,7 +452,7 @@ contract BorrowMidnightRenewalClampFuzzTest is ClampFuzzFixtures {
                 sourceMarket: sourceMarket, feeRate: callbackFeeRate, feeRecipient: feeRecipient, tick: tick
             });
 
-            (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+            (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
             offer = Offer({
                 market: customTarget,
                 buy: false,
@@ -797,7 +797,7 @@ contract BorrowMidnightRenewalClampFuzzTest is ClampFuzzFixtures {
         {
             uint256 callbackFeeRate = _boundCallbackFeeRate(feeRateSeed);
             uint256 ttm = _boundTimeToMaturity(ttmSeed);
-            uint256 consumedAmount = uint256(offerCapacity) * consumedPercent / 100;
+            uint128 consumedAmount = uint128(uint256(offerCapacity) * consumedPercent / 100);
 
             bytes32 group = keccak256(
                 abi.encodePacked(
@@ -831,7 +831,7 @@ contract BorrowMidnightRenewalClampFuzzTest is ClampFuzzFixtures {
             }
 
             // BUY offer from lender (lender is maker/buyer)
-            (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+            (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
             offer = Offer({
                 market: customTarget,
                 buy: true,

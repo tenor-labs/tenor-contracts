@@ -36,6 +36,7 @@ contract MidnightVaultExecutorIntegrationTest is Test {
     IVaultV2 vault;
     IVaultV2Factory factory;
     MockERC20 underlying;
+    Oracle marketOracle;
 
     address vaultOwner;
     address vaultCurator;
@@ -57,6 +58,10 @@ contract MidnightVaultExecutorIntegrationTest is Test {
 
         // Deploy tokens
         underlying = new MockERC20("Underlying", "UND", 18);
+
+        // Midnight activates collateral by querying the oracle, so markets need a live one
+        marketOracle = new Oracle();
+        marketOracle.setPrice(1e36);
 
         // Deploy Midnight
         midnight = new Midnight();
@@ -124,7 +129,7 @@ contract MidnightVaultExecutorIntegrationTest is Test {
     function _createMarket() internal view returns (Market memory) {
         CollateralParams[] memory collaterals = new CollateralParams[](1);
         collaterals[0] = CollateralParams({
-            token: address(vault), lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: address(0)
+            token: address(vault), lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: address(marketOracle)
         });
 
         return Market({
@@ -336,7 +341,7 @@ contract MidnightVaultExecutorIntegrationTest is Test {
 
         CollateralParams[] memory collaterals2 = new CollateralParams[](1);
         collaterals2[0] = CollateralParams({
-            token: address(vault2), lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: address(0)
+            token: address(vault2), lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: address(marketOracle)
         });
 
         Market memory market2 = Market({
@@ -515,9 +520,11 @@ contract MidnightVaultExecutorIntegrationTest is Test {
 
         // Attacker builds a fake market whose only collateral is an unrelated dummy ERC20 (not a vault).
         MockERC20 dummy = new MockERC20("Dummy", "DUM", 18);
+        Oracle attackerOracle = new Oracle();
+        attackerOracle.setPrice(1e36);
         CollateralParams[] memory collaterals = new CollateralParams[](1);
         collaterals[0] = CollateralParams({
-            token: address(dummy), lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: address(0)
+            token: address(dummy), lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: address(attackerOracle)
         });
         Market memory fakeMarket = Market({
             chainId: block.chainid,
@@ -796,7 +803,7 @@ contract MidnightVaultExecutorLiquidationTest is Test {
             receiverIfMakerIsSeller: borrower,
             ratifier: address(ecrecoverRatifier),
             reduceOnly: false,
-            maxUnits: debtAmount,
+            maxUnits: uint128(debtAmount),
             maxAssets: 0,
             continuousFeeCap: type(uint256).max
         });
@@ -1222,7 +1229,7 @@ contract MidnightVaultExecutorFullGateTest is Test {
             receiverIfMakerIsSeller: borrower,
             ratifier: address(ecrecoverRatifier),
             reduceOnly: false,
-            maxUnits: debtAmount,
+            maxUnits: uint128(debtAmount),
             maxAssets: 0,
             continuousFeeCap: type(uint256).max
         });

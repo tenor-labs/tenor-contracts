@@ -36,7 +36,7 @@ abstract contract TenorRouterAdapterBase is TenorRouter, CoreAdapter, ITenorRout
         ExecuteParams calldata params,
         Action[] calldata actions,
         bytes32 consumeGroup,
-        uint256 maxConsumed
+        uint128 maxConsumed
     ) external override onlyBundler3 returns (uint256, uint256, uint256) {
         address initiator = _initiator();
 
@@ -45,7 +45,9 @@ abstract contract TenorRouterAdapterBase is TenorRouter, CoreAdapter, ITenorRout
         uint8 fillIndex = _fillIndex(params.fillAxis, actions, initiator);
         uint256 newConsumed = _MORPHO_MIDNIGHT.consumed(initiator, consumeGroup) + rawTotals[fillIndex];
         if (newConsumed > maxConsumed) revert ConsumedCapExceeded(newConsumed, maxConsumed);
-        _MORPHO_MIDNIGHT.setConsumed(consumeGroup, newConsumed, initiator);
+        // Cast safe: newConsumed <= maxConsumed <= type(uint128).max.
+        // forge-lint: disable-next-line(unsafe-typecast)
+        _MORPHO_MIDNIGHT.setConsumed(consumeGroup, uint128(newConsumed), initiator);
         return (totals[0], totals[1], totals[2]);
     }
 

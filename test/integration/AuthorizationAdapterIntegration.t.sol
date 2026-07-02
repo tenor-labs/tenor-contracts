@@ -22,7 +22,7 @@ contract AuthorizationAdapterIntegrationTest is Fixtures {
     address internal user;
 
     bytes32 internal constant GROUP = keccak256("integration-group");
-    uint256 internal constant CONSUMED_AMOUNT = 123e18;
+    uint128 internal constant CONSUMED_AMOUNT = 123e18;
 
     function setUp() public {
         user = makeAddr("User");
@@ -41,7 +41,7 @@ contract AuthorizationAdapterIntegrationTest is Fixtures {
         return _call(address(authAdapter), abi.encodeCall(authAdapter.midnightSetIsAuthorized, (adapter, value)));
     }
 
-    function _setConsumed(bytes32 group, uint256 amount) internal view returns (Call memory) {
+    function _setConsumed(bytes32 group, uint128 amount) internal view returns (Call memory) {
         return _call(address(tenorAdapter), abi.encodeCall(tenorAdapter.midnightSetConsumed, (group, amount)));
     }
 

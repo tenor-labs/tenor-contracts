@@ -227,7 +227,7 @@ contract VaultSupplyClampFuzzTest is ClampFuzzFixtures {
         midnight.setIsAuthorized(address(ecrecoverRatifier), true, freshBorrower);
         vm.stopPrank();
 
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: false,
@@ -339,7 +339,7 @@ contract VaultSupplyClampFuzzTest is ClampFuzzFixtures {
         midnight.setIsAuthorized(address(ecrecoverRatifier), true, freshBorrower);
         vm.stopPrank();
 
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: false,

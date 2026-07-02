@@ -215,7 +215,7 @@ contract BuyOfferClampFuzzTest is ClampFuzzFixtures {
         loanToken.approve(address(midnight), uint256(lenderAllowance));
 
         // --- Build BUY offer ---
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: true,
@@ -312,7 +312,7 @@ contract BuyOfferClampFuzzTest is ClampFuzzFixtures {
         loanToken.approve(address(midnight), uint256(lenderAllowance));
 
         // --- Build BUY offer (units-based capacity) ---
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: true,
@@ -430,7 +430,7 @@ contract BuyOfferClampFuzzTest is ClampFuzzFixtures {
 
         // --- Build BUY offer from repayer (who has debt = repay path) ---
         // reduceOnly=true: repayer is closing their borrow position, crossing not allowed
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: true,
@@ -535,7 +535,7 @@ contract BuyOfferClampFuzzTest is ClampFuzzFixtures {
 
         // BUY offer with units-based capacity (typical repay offer)
         // reduceOnly=true: repayer is closing their borrow position, crossing not allowed
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: true,

@@ -42,7 +42,7 @@ contract TenorAdapterTestBase is Fixtures {
 
 contract TenorAdapterSetConsumedTest is TenorAdapterTestBase {
     bytes32 internal constant GROUP = keccak256("test-group");
-    uint256 internal constant AMOUNT = 100e18;
+    uint128 internal constant AMOUNT = 100e18;
 
     function test_midnightSetConsumed_viaBundler() public {
         vm.prank(user);
@@ -91,10 +91,19 @@ contract TenorAdapterSetConsumedTest is TenorAdapterTestBase {
         assertEq(midnight.consumed(user, GROUP), AMOUNT * 2);
     }
 
-    function testFuzz_midnightSetConsumed(bytes32 group, uint256 amount) public {
+    function testFuzz_midnightSetConsumed(bytes32 group, uint128 amount) public {
         vm.prank(user);
         bundler3.multicall(_makeCall(abi.encodeCall(adapter.midnightSetConsumed, (group, amount))));
         assertEq(midnight.consumed(user, group), amount);
+    }
+
+    /// @dev Midnight tracks `consumed` as uint128; calldata carrying a larger amount must be rejected
+    ///      at ABI decoding of the `uint128` parameter.
+    function testFuzz_midnightSetConsumed_overUint128Reverts(bytes32 group, uint256 amount) public {
+        amount = bound(amount, uint256(type(uint128).max) + 1, type(uint256).max);
+        vm.prank(user);
+        vm.expectRevert();
+        bundler3.multicall(_makeCall(abi.encodeWithSelector(adapter.midnightSetConsumed.selector, group, amount)));
     }
 }
 

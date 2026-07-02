@@ -108,7 +108,7 @@ abstract contract MidnightAdapterBase is CoreAdapter, IMidnightAdapter {
     }
 
     /// @inheritdoc IMidnightAdapter
-    function midnightSetConsumed(bytes32 group, uint256 amount) external onlyBundler3 {
+    function midnightSetConsumed(bytes32 group, uint128 amount) external onlyBundler3 {
         MORPHO_MIDNIGHT.setConsumed(group, amount, initiator());
     }
 

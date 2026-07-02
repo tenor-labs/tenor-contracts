@@ -277,7 +277,7 @@ contract VaultWithdrawClampFuzzTest is ClampFuzzFixtures {
         loanToken.approve(address(midnight), type(uint256).max);
 
         // BUY offer from repayer (repay + withdraw vault collateral)
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: true,
@@ -384,7 +384,7 @@ contract VaultWithdrawClampFuzzTest is ClampFuzzFixtures {
         vm.prank(freshRepayer);
         loanToken.approve(address(midnight), type(uint256).max);
 
-        (uint256 mu, uint256 ma) = _denomFields(offerCapacity, denom);
+        (uint128 mu, uint128 ma) = _denomFields(offerCapacity, denom);
         Offer memory offer = Offer({
             market: market,
             buy: true,
