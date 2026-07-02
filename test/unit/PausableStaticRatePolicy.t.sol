@@ -97,11 +97,15 @@ contract PausableStaticRatePolicyTest is Test {
         assertEq(rate, RATE_B);
 
         // Midpoint: elapsed = DURATION_B / 2, should return midpoint rate
-        rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp - DURATION_B / 2, address(0), address(0), 0, 0, false);
+        rate = policy.getRate(
+            bytes32(0), bytes32(0), block.timestamp - DURATION_B / 2, address(0), address(0), 0, 0, false
+        );
         assertEq(rate, (RATE_A + RATE_B) / 2);
 
         // Past the last point: elapsed > DURATION_B, should clamp to RATE_B
-        rate = policy.getRate(bytes32(0), bytes32(0), block.timestamp - DURATION_B * 2, address(0), address(0), 0, 0, false);
+        rate = policy.getRate(
+            bytes32(0), bytes32(0), block.timestamp - DURATION_B * 2, address(0), address(0), 0, 0, false
+        );
         assertEq(rate, RATE_B);
     }
 

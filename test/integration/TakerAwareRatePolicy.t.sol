@@ -65,9 +65,7 @@ contract TakerAwareRatePolicyTest is MigrationRatifierTestBase {
     function _setBorrowParamsWithPolicy(address policy) internal {
         IMigrationRatifier.UserMigrationParams memory params = _defaultBorrowParams();
         params.interestRatePolicy = policy;
-        _setParams(
-            borrower, address(borrowMidnightRenewalCallback), sourceTenorMarketId, targetTenorMarketId, params
-        );
+        _setParams(borrower, address(borrowMidnightRenewalCallback), sourceTenorMarketId, targetTenorMarketId, params);
     }
 
     function test_takeSucceedsForPreferredTaker() public {
