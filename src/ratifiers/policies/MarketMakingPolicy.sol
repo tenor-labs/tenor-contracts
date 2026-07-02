@@ -61,7 +61,6 @@ contract MarketMakingPolicy is IMarketMakingPolicy {
     /// @inheritdoc IInterestRatePolicy
     /// @dev Midnight to Midnight renewals are rejected. A buy quotes the target market's buyRate, a sell the source
     /// market's sellRate. The ttm is floored at zero so past-maturity markets clamp instead of underflowing.
-    /// @dev Quotes are taker-agnostic: the same curve serves every counterparty.
     function getRate(
         bytes32 sourceTenorMarketId,
         bytes32 targetTenorMarketId,
