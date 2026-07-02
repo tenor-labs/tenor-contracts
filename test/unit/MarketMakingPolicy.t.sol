@@ -29,7 +29,7 @@ contract MarketMakingPolicyTest is Test {
         vm.prank(mm);
         policy.setCurve(mm, TGT, pts);
         vm.warp(1_000_000);
-        assertEq(policy.getRate(SRC, TGT, 0, mm, 0, 1_000_100, true), 3e18);
+        assertEq(policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_100, true), 3e18);
     }
 
     function test_setCurve_unauthorizedCaller_reverts() public {
@@ -46,9 +46,9 @@ contract MarketMakingPolicyTest is Test {
         policy.setCurve(mm, TGT, pts);
 
         vm.warp(1_000_000);
-        assertEq(policy.getRate(SRC, TGT, 0, mm, 0, 1_000_100, true), 3e18);
+        assertEq(policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_100, true), 3e18);
         vm.expectRevert(IMarketMakingPolicy.NoCurveForUserMarket.selector);
-        policy.getRate(SRC, TGT, 0, delegate, 0, 1_000_100, true);
+        policy.getRate(SRC, TGT, 0, delegate, address(0), 0, 1_000_100, true);
     }
 
     function test_clearCurve_unauthorizedCaller_reverts() public {
@@ -72,7 +72,7 @@ contract MarketMakingPolicyTest is Test {
 
         vm.warp(1_000_000);
         vm.expectRevert(IMarketMakingPolicy.NoCurveForUserMarket.selector);
-        policy.getRate(SRC, TGT, 0, mm, 0, 1_000_100, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_100, true);
     }
 
     /* Curve admin */
@@ -147,8 +147,8 @@ contract MarketMakingPolicyTest is Test {
 
         vm.warp(1_000_000);
         // Second curve overrode first: buy side flat at 5e18.
-        assertEq(policy.getRate(SRC, TGT, 0, mm, 0, 1_000_050, true), 5e18);
-        assertEq(policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, true), 5e18);
+        assertEq(policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_050, true), 5e18);
+        assertEq(policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, true), 5e18);
     }
 
     function test_clearCurve_makesGetRateRevert() public {
@@ -160,7 +160,7 @@ contract MarketMakingPolicyTest is Test {
 
         vm.warp(1_000_000);
         vm.expectRevert(IMarketMakingPolicy.NoCurveForUserMarket.selector);
-        policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, true);
     }
 
     /* Per-user isolation */
@@ -175,8 +175,8 @@ contract MarketMakingPolicyTest is Test {
         policy.setCurve(otherMm, TGT, pts2);
 
         vm.warp(1_000_000);
-        assertEq(policy.getRate(SRC, TGT, 0, mm, 0, 1_000_100, true), 3e18);
-        assertEq(policy.getRate(SRC, TGT, 0, otherMm, 0, 1_000_100, true), 9e18);
+        assertEq(policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_100, true), 3e18);
+        assertEq(policy.getRate(SRC, TGT, 0, otherMm, address(0), 0, 1_000_100, true), 9e18);
     }
 
     /* Side dispatch within a single curve */
@@ -191,10 +191,10 @@ contract MarketMakingPolicyTest is Test {
         vm.warp(1_000_000);
         // userIsBuyer=false → Midnight→Vault exit (sourceMaturity > 0, targetMaturity == 0) → SRC curve, sell
         // side. The Midnight (priced) leg is the source.
-        assertEq(policy.getRate(SRC, TGT, 0, mm, 1_000_150, 0, false), 1e18);
+        assertEq(policy.getRate(SRC, TGT, 0, mm, address(0), 1_000_150, 0, false), 1e18);
         // userIsBuyer=true → Vault→Midnight entry (sourceMaturity == 0, targetMaturity > 0) → TGT curve, buy
         // side. The Midnight (priced) leg is the target.
-        assertEq(policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, true), 3e18);
+        assertEq(policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, true), 3e18);
     }
 
     /* Borrow (Blue<->Midnight) flows are unsupported — they must ALWAYS revert */
@@ -204,7 +204,7 @@ contract MarketMakingPolicyTest is Test {
     function test_borrowEntry_sell_reverts_noCurve() public {
         vm.warp(1_000_000);
         vm.expectRevert(IMarketMakingPolicy.UnsupportedMigrationRoute.selector);
-        policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, false);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, false);
     }
 
     // Even if a curve is stored under the Blue leg id (setCurve does not validate the key), the borrow entry
@@ -215,7 +215,7 @@ contract MarketMakingPolicyTest is Test {
         policy.setCurve(mm, SRC, pts); // SRC plays the Blue leg (the side the sell flow selects)
         vm.warp(1_000_000);
         vm.expectRevert(IMarketMakingPolicy.UnsupportedMigrationRoute.selector);
-        policy.getRate(SRC, TGT, 0, mm, 0, 1_000_150, false);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 0, 1_000_150, false);
     }
 
     // Borrow exit (BORROW_MIDNIGHT_TO_BLUE): user buys (userIsBuyer=true), source is Midnight (maturity > 0),
@@ -223,7 +223,7 @@ contract MarketMakingPolicyTest is Test {
     function test_borrowExit_buy_reverts_noCurve() public {
         vm.warp(1_000_000);
         vm.expectRevert(IMarketMakingPolicy.UnsupportedMigrationRoute.selector);
-        policy.getRate(SRC, TGT, 0, mm, 1_000_150, 0, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 1_000_150, 0, true);
     }
 
     function test_borrowExit_buy_reverts_evenWithBlueCurve() public {
@@ -232,7 +232,7 @@ contract MarketMakingPolicyTest is Test {
         policy.setCurve(mm, TGT, pts); // TGT plays the Blue leg (the side the buy flow selects)
         vm.warp(1_000_000);
         vm.expectRevert(IMarketMakingPolicy.UnsupportedMigrationRoute.selector);
-        policy.getRate(SRC, TGT, 0, mm, 1_000_150, 0, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 1_000_150, 0, true);
     }
 
     /* Midnight→Midnight rolls are unsupported */
@@ -247,9 +247,9 @@ contract MarketMakingPolicyTest is Test {
         vm.warp(1_000_000);
         // Both maturities non-zero → Midnight→Midnight roll → revert regardless of userIsBuyer.
         vm.expectRevert(IMarketMakingPolicy.UnsupportedMigrationRoute.selector);
-        policy.getRate(SRC, TGT, 0, mm, 1_000_100, 1_000_200, true);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 1_000_100, 1_000_200, true);
         vm.expectRevert(IMarketMakingPolicy.UnsupportedMigrationRoute.selector);
-        policy.getRate(SRC, TGT, 0, mm, 1_000_100, 1_000_200, false);
+        policy.getRate(SRC, TGT, 0, mm, address(0), 1_000_100, 1_000_200, false);
     }
 
     /* Past-maturity clamp (probed via sell side which uses sourceMaturity) */
@@ -260,7 +260,7 @@ contract MarketMakingPolicyTest is Test {
         policy.setCurve(mm, SRC, pts);
 
         vm.warp(1_000_000);
-        uint256 result = policy.getRate(SRC, TGT, 0, mm, 999_900, 0, false);
+        uint256 result = policy.getRate(SRC, TGT, 0, mm, address(0), 999_900, 0, false);
         assertEq(result, 1e18);
     }
 

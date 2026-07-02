@@ -24,19 +24,19 @@ contract StaticRatePolicyTest is Test {
 
         // At first knot (elapsed=0)
         vm.warp(1000);
-        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), 0, 0, false), 100);
+        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), address(0), 0, 0, false), 100);
 
         // At interior knot (elapsed=1000)
         vm.warp(2000);
-        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), 0, 0, false), 200);
+        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), address(0), 0, 0, false), 200);
 
         // Mid-segment [1]->[2]: elapsed=2000 → 200 + (500-200) * (2000-1000) / (3000-1000) = 350
         vm.warp(3000);
-        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), 0, 0, false), 350);
+        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), address(0), 0, 0, false), 350);
 
         // At last knot (elapsed=3000)
         vm.warp(4000);
-        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), 0, 0, false), 500);
+        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), address(0), 0, 0, false), 500);
     }
 
     /// @dev `block.timestamp < renewalPeriodStart` is contract-specific glue (the
@@ -52,6 +52,6 @@ contract StaticRatePolicyTest is Test {
         StaticRatePolicy policy = new StaticRatePolicy(rates, durations);
 
         vm.warp(500);
-        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), 0, 0, false), 100);
+        assertEq(policy.getRate(bytes32(0), bytes32(0), 1000, address(0), address(0), 0, 0, false), 100);
     }
 }

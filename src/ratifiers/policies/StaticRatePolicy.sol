@@ -47,7 +47,7 @@ contract StaticRatePolicy is IInterestRatePolicy {
     }
 
     /// @inheritdoc IInterestRatePolicy
-    function getRate(bytes32, bytes32, uint256 renewalPeriodStart, address, uint256, uint256, bool)
+    function getRate(bytes32, bytes32, uint256 renewalPeriodStart, address, address, uint256, uint256, bool)
         public
         view
         virtual

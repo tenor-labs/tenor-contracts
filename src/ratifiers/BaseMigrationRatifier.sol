@@ -112,12 +112,14 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     }
 
     /// @dev Runs the migration ratification flow for `user` against their resolved `params`, agnostic to make- or
-    /// take-on-behalf. `user` is the party whose position migrates; `callback`/`callbackData` are the migration
-    /// callback and its data on the user's side of the take; `offer` carries the migration market, tick (price), and
-    /// maker. `src`/`tgt` are the user-declared source/target Tenor market ids and must match the callback-derived
-    /// markets.
+    /// take-on-behalf. `user` is the party whose position migrates; `taker` is the counterparty filling the offer,
+    /// forwarded to the interest rate policy for counterparty-aware pricing; `callback`/`callbackData` are the
+    /// migration callback and its data on the user's side of the take; `offer` carries the migration market, tick
+    /// (price), and maker. `src`/`tgt` are the user-declared source/target Tenor market ids and must match the
+    /// callback-derived markets.
     function _ratify(
         address user,
+        address taker,
         address callback,
         bytes memory callbackData,
         Offer memory offer,
@@ -153,6 +155,7 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
         uint256 renewalPeriodStart = _ratifyWindow(params, sourceMaturity, targetMaturity);
         _ratifyRate(
             user,
+            taker,
             callback,
             offer,
             params,
@@ -298,6 +301,7 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     /// make-on-behalf). The check is continuous, while Midnight's integer settlement rounds against the taker.
     function _ratifyRate(
         address user,
+        address taker,
         address callback,
         Offer memory offer,
         UserMigrationParams memory params,
@@ -316,6 +320,7 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
                 targetTenorMarketId,
                 renewalPeriodStart,
                 user,
+                taker,
                 sourceMaturity,
                 targetMaturity,
                 userIsBuy

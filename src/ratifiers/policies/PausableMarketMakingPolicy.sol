@@ -20,6 +20,7 @@ contract PausableMarketMakingPolicy is MarketMakingPolicy, PausableBase {
         bytes32 targetTenorMarketId,
         uint256 renewalPeriodStart,
         address user,
+        address taker,
         uint256 sourceMaturity,
         uint256 targetMaturity,
         bool userIsBuyer
@@ -29,6 +30,7 @@ contract PausableMarketMakingPolicy is MarketMakingPolicy, PausableBase {
             targetTenorMarketId,
             renewalPeriodStart,
             user,
+            taker,
             sourceMaturity,
             targetMaturity,
             userIsBuyer
