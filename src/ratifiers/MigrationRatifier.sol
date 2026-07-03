@@ -20,7 +20,8 @@ import {IMigrationRatifier} from "./interfaces/IMigrationRatifier.sol";
 contract MigrationRatifier is BaseMigrationRatifier {
     /// @inheritdoc IMigrationRatifier
     /// @dev Top 6 bytes = "tenor" (0x74656e6f72) domain prefix + schema version byte 0xE0; the 0xE0-0xEF
-    /// version range is reserved for migration groups. The low 208 bits stay free to vary per offer.
+    /// version range is reserved for migration-group schema versions (this mask matches 0xE0 exactly). The low
+    /// 208 bits stay free to vary per offer.
     bytes32 public constant MIGRATION_GROUP_HEADER = hex"74656e6f72e0";
 
     /// @inheritdoc IMigrationRatifier

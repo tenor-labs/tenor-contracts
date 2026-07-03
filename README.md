@@ -209,7 +209,7 @@ Stateless, view-only contracts that cap `takeUnits` before dispatch. There is on
 
 `TenorAdapter` extends Bundler3's adapter pattern to expose all Tenor operations as multicallable actions. Composed of:
 
-- **`MidnightAdapterBase`** - Raw Morpho Midnight operations (take, repay, supply/withdraw collateral, flash loans)
+- **`MidnightAdapterBase`** - Raw Morpho Midnight operations (repay, supply/withdraw collateral, flash loans)
 - **`MigrationRatifierAdapterBase`** - Ratifier param operations (`migrationSetParams`, `migrationClearParams`). Pins the ratifier as an immutable at deploy time.
 - **`TenorRouterAdapterBase`** - Batch fill execution via TenorRouter, with sentinel value resolution for onchain balance lookups
 
