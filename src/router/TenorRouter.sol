@@ -325,8 +325,7 @@ abstract contract TenorRouter is ITenorRouter {
 
     /// @dev Returns `takeUnits` capped by the remaining fill budget (`remaining`, denominated in assets or units
     /// depending on `fillIndex`), the offer's remaining capacity, and the optional `clamp`.
-    /// @dev The budget is saturated at `type(uint128).max` before conversion: Midnight amounts are uint128 so a
-    /// larger budget never binds, and the saturation keeps adjuster/inversion WAD math overflow-free.
+    /// @dev `remaining` is clamped at `type(uint128).max` so adjuster/inversion WAD math cannot overflow.
     function _capTakeUnits(
         Action calldata action,
         uint256 takeUnits,

@@ -330,7 +330,7 @@ contract TakeRouterTest is BoundaryTestBase {
         assertLe(units, params.maxFill, "UNITS: capped");
     }
 
-    /// @dev maxFill in [type(uint256).max / WAD, type(uint256).max) used to skip the budget-to-units conversion;
+    /// @dev maxFill at or above type(uint256).max / WAD used to skip the budget-to-units conversion;
     /// the budget now saturates at type(uint128).max and converts uniformly, without binding the fill.
     function test_fillAxis_assets_hugeMaxFill_doesNotBind() public {
         _primeBuyerSide();
@@ -350,10 +350,7 @@ contract TakeRouterTest is BoundaryTestBase {
     /// WAD inversions.
     function test_fillAxis_assets_hugeMaxFill_withFeeAdjuster() public {
         _primeBuyerSide();
-        (Offer memory offer, Signature memory sig, bytes32 root) =
-            _sellOfferOnTarget(DEFAULT_TICK, borrower, borrowerSK);
-
-        Action memory action = _action(offer, sig, root, 50e18, address(0));
+        Action memory action = _buyerSideAction(50e18, DEFAULT_TICK, false);
         action.feeAdjuster = address(new CallbackFeeAdjuster(address(midnight)));
         action.feeAdjusterData = abi.encode(uint256(0.1e18), CallbackFeeAdjuster.FeeFormula.INTEREST);
         Action[] memory actions = new Action[](1);
