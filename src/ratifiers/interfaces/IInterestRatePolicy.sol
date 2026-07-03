@@ -17,7 +17,7 @@ interface IInterestRatePolicy {
     /// @param targetTenorMarketId The id of the target side of the renewal (the position being entered).
     /// @param renewalPeriodStart The renewal period start timestamp (the policy computes the elapsed time internally).
     /// @param user The position owner being renewed (the offer maker in the make-on-behalf flow).
-    /// @param taker The counterparty filling the offer (Midnight's `take` caller), forwarded from `isRatified`.
+    /// @param taker The `Midnight.take` `taker`, forwarded from `isRatified`.
     /// @param sourceMaturity The source market maturity (0 for Blue to Midnight migrations).
     /// @param targetMaturity The target market maturity (0 for Midnight to Blue exits).
     /// @param userIsBuyer The renewed user's side in the trade, derived from the migration direction.
