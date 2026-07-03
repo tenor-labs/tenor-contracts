@@ -11,14 +11,7 @@ import {Market, CollateralParams, Offer, IMidnight} from "@midnight/interfaces/I
 import {Signature, EIP712_DOMAIN_TYPEHASH} from "@midnight/ratifiers/interfaces/IEcrecoverRatifier.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {HashLib} from "@midnight/ratifiers/libraries/HashLib.sol";
-import {
-    IMorpho,
-    MarketParams,
-    Position,
-    Id,
-    Authorization,
-    Market as BlueMarket
-} from "@morphoBlue/interfaces/IMorpho.sol";
+import {IMorpho, MarketParams, Position, Id, Market as BlueMarket} from "@morphoBlue/interfaces/IMorpho.sol";
 import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 import {Midnight} from "@midnight/Midnight.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
@@ -32,7 +25,6 @@ import {TakeAmountsLib} from "@midnight/periphery/TakeAmountsLib.sol";
 import {LIQUIDATION_CURSOR} from "../helpers/MaxLifLib.sol";
 
 import {IIrm} from "@morphoBlue/interfaces/IIrm.sol";
-import {IOracle} from "@morphoBlue/interfaces/IOracle.sol";
 
 contract BorrowMidnightToBlueCallbackTest is Fixtures {
     using MarketParamsLib for MarketParams;

@@ -9,7 +9,7 @@ import {IMidnight, Market, CollateralParams, Offer} from "@midnight/interfaces/I
 import {Signature, EIP712_DOMAIN_TYPEHASH} from "@midnight/ratifiers/interfaces/IEcrecoverRatifier.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {HashLib} from "@midnight/ratifiers/libraries/HashLib.sol";
-import {IMorpho, MarketParams, Position, Id, Market as BlueMarket} from "@morphoBlue/interfaces/IMorpho.sol";
+import {IMorpho, MarketParams, Id, Market as BlueMarket} from "@morphoBlue/interfaces/IMorpho.sol";
 import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 import {MorphoBalancesLib} from "@morphoBlue/libraries/periphery/MorphoBalancesLib.sol";
 import {CallbackLib} from "../../src/libraries/CallbackLib.sol";

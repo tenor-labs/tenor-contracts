@@ -9,7 +9,7 @@ import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {WAD, MAX_CONTINUOUS_FEE} from "@midnight/libraries/ConstantsLib.sol";
 import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {StaticRatePolicy} from "../../src/ratifiers/policies/StaticRatePolicy.sol";
-import {Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {Id} from "@morphoBlue/interfaces/IMorpho.sol";
 import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 
 /// @title MigrationRatifierIntegrationTest

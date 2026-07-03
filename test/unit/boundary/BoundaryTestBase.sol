@@ -39,7 +39,7 @@ import {LendMidnightRenewalCallback} from "@callbacks/LendMidnightRenewalCallbac
 import {WAD} from "@midnight/libraries/ConstantsLib.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TakeAmountsLib} from "@midnight/periphery/TakeAmountsLib.sol";
-import {IMorpho, Id, Market as BlueMarket, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {IMorpho, Market as BlueMarket, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
 import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 import {IIrm} from "@morphoBlue/interfaces/IIrm.sol";
 import {StaticRatePolicy} from "../../../src/ratifiers/policies/StaticRatePolicy.sol";
