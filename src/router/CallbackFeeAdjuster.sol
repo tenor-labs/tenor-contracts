@@ -16,6 +16,10 @@ import {WAD} from "@midnight/libraries/ConstantsLib.sol";
 /// @notice Default `ICallbackFeeAdjuster` implementation that mirrors Tenor's callback fee math.
 /// @dev Two fee formulas are supported via `FeeFormula`: INTEREST is the effective-price fee from `CallbackLib`
 /// (tick + feeRate), and PERCENTAGE is the flat `CallbackLib.percentageFee(initiatorAssets, feeRate)`.
+/// @dev The callback fee always lands on the initiator's (taker) asset side, so it falls on `!offer.buy`.
+/// `beforeDispatch` learns that side from `fillIndex`; `afterDispatch` learns it from the `initiatorIsBuyer` flag.
+/// @dev `afterDispatch` reports the fee on the initiator's side; the router books it in the initiator-worsening
+/// direction (`buyerAssets += fee` or `sellerAssets -= fee`), tightening fill/slippage accounting only.
 /// @dev The FeeFormula and feeRate in feeAdjusterData are caller-supplied and not checked against the offer's actual
 /// callback; mislabeled metadata under-reports fees against the batch's fill limits.
 contract CallbackFeeAdjuster is ICallbackFeeAdjuster {
