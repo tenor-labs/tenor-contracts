@@ -19,7 +19,8 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// @dev Only the target Blue market's single collateral token migrates; other source collaterals stay on Midnight,
 /// which can adversely affect the source or target LTV. Use only the target's collateral on the source position.
 /// @dev On small partial fills, the pro-rata collateral withdrawal can round to zero even though debt is migrated,
-/// temporarily increasing the target Blue position's LTV until the position is fully migrated.
+/// temporarily increasing the target Blue position's LTV until the position is fully migrated. Zero-amount
+/// collateral operations are skipped.
 /// @dev The fee is borrowed in addition to buyerAssets so any feeRate > 0 raises the post-migration Blue LTV.
 /// @dev The borrower must authorize this contract on Morpho Midnight (collateral withdrawal) and Morpho Blue (borrow).
 /// @dev Reverts if the fill would leave the borrower with credit on the Midnight market.
@@ -71,10 +72,13 @@ contract BorrowMidnightToBlueCallback is IBorrowMidnightToBlueCallback {
         uint256 collateralMigrated =
             sourceDebtAfter == 0 ? sourceCollateral : sourceCollateral.mulDivDown(units, sourceDebtBefore);
 
-        MORPHO_MIDNIGHT.withdrawCollateral(market, collateralIndex, collateralMigrated, buyer, address(this));
+        if (collateralMigrated > 0) {
+            MORPHO_MIDNIGHT.withdrawCollateral(market, collateralIndex, collateralMigrated, buyer, address(this));
 
-        IERC20(callbackData.targetMarketParams.collateralToken).forceApprove(address(MORPHO_BLUE), collateralMigrated);
-        MORPHO_BLUE.supplyCollateral(callbackData.targetMarketParams, collateralMigrated, buyer, "");
+            IERC20(callbackData.targetMarketParams.collateralToken)
+                .forceApprove(address(MORPHO_BLUE), collateralMigrated);
+            MORPHO_BLUE.supplyCollateral(callbackData.targetMarketParams, collateralMigrated, buyer, "");
+        }
 
         uint256 borrowAmount = buyerAssets + fee;
         MORPHO_BLUE.borrow(callbackData.targetMarketParams, borrowAmount, 0, buyer, address(this));

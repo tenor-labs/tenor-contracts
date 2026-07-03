@@ -9,6 +9,7 @@ import {Offer, Market} from "@midnight/interfaces/IMidnight.sol";
 import {Signature} from "@midnight/ratifiers/interfaces/IEcrecoverRatifier.sol";
 import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
+import {MAX_CONTINUOUS_FEE} from "@midnight/libraries/ConstantsLib.sol";
 import {HashLib} from "@midnight/ratifiers/libraries/HashLib.sol";
 import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {MockTakeClamp} from "../helpers/mocks/MockTakeClamp.sol";
@@ -67,6 +68,7 @@ contract TakeRouterTest is BoundaryTestBase {
             minFill: 0,
             minPrice: 0,
             maxPrice: type(uint256).max,
+            maxContinuousFee: type(uint256).max,
             reduceOnly: false
         });
     }
@@ -750,5 +752,50 @@ contract TakeRouterTest is BoundaryTestBase {
         vm.prank(borrower);
         router.execute(_reduceOnlyParams(borrower), actions);
         assertEq(midnight.credit(targetMarketId, borrower), 0, "allowRevert mix: no credit added");
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Section 11 — maxContinuousFee (taker fee protection)
+       ═══════════════════════════════════════════════════════════════ */
+
+    /// @dev Sets the market fee to MAX_CONTINUOUS_FEE and returns a one-action buyer-side batch capped at `cap`.
+    function _feeCapCase(uint256 cap, bool allowRevert)
+        internal
+        returns (ExecuteParams memory params, Action[] memory actions)
+    {
+        _primeBuyerSide();
+        midnight.setFeeSetter(address(this));
+        midnight.setMarketContinuousFee(targetMarketId, MAX_CONTINUOUS_FEE);
+
+        actions = new Action[](1);
+        actions[0] = _buyerSideAction(50e18, DEFAULT_TICK, allowRevert);
+
+        params = _defaultExecuteParams(lender);
+        params.maxContinuousFee = cap;
+    }
+
+    function test_revert_continuousFeeAboveMax() public {
+        (ExecuteParams memory params, Action[] memory actions) = _feeCapCase(MAX_CONTINUOUS_FEE - 1, false);
+
+        vm.prank(lender);
+        vm.expectRevert(ITenorRouter.ContinuousFeeAboveMax.selector);
+        router.execute(params, actions);
+    }
+
+    function test_revert_continuousFeeAboveMax_allowRevert_stillReverts() public {
+        (ExecuteParams memory params, Action[] memory actions) = _feeCapCase(MAX_CONTINUOUS_FEE - 1, true);
+
+        vm.prank(lender);
+        vm.expectRevert(ITenorRouter.ContinuousFeeAboveMax.selector);
+        router.execute(params, actions);
+    }
+
+    function test_continuousFee_atMax_passes() public {
+        (ExecuteParams memory params, Action[] memory actions) = _feeCapCase(MAX_CONTINUOUS_FEE, false);
+
+        vm.prank(lender);
+        (uint256 buyerAssets,, uint256 units) = router.execute(params, actions);
+        assertGt(buyerAssets, 0, "FEE_AT_MAX: buyerAssets > 0");
+        assertGt(units, 0, "FEE_AT_MAX: units > 0");
     }
 }

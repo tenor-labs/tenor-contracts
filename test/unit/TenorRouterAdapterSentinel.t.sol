@@ -227,6 +227,7 @@ contract TakeRouterAdapterSentinelTest is Fixtures {
             minFill: minFill,
             minPrice: 0,
             maxPrice: type(uint256).max,
+            maxContinuousFee: type(uint256).max,
             reduceOnly: false
         });
     }
@@ -326,6 +327,7 @@ contract TakeRouterAdapterSentinelTest is Fixtures {
             minFill: 1,
             minPrice: 0,
             maxPrice: type(uint256).max,
+            maxContinuousFee: type(uint256).max,
             reduceOnly: false
         });
 
@@ -431,6 +433,7 @@ contract TakeRouterAdapterSentinelTest is Fixtures {
             minFill: 0,
             minPrice: 0,
             maxPrice: type(uint256).max,
+            maxContinuousFee: type(uint256).max,
             reduceOnly: false
         });
 
