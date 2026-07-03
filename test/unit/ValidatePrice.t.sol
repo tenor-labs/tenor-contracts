@@ -38,7 +38,7 @@ contract ValidatePriceUnitTest is Test {
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Bond pricing at various APRs
+       Unit pricing at various APRs
        ═══════════════════════════════════════════════════════════════ */
 
     function test_computePrice_knownValues() public pure {
@@ -168,7 +168,7 @@ contract ValidatePriceUnitTest is Test {
         uint256 fee = (sellerAssets * 0.005e18) / WAD;
         uint256 netSellerAssets = sellerAssets - fee;
 
-        // 0.5% fee on 6% bond exceeds 6% AND 8% ceilings
+        // 0.5% fee on a 6% offer exceeds 6% AND 8% ceilings
         vm.expectRevert(ValidatePriceHarness.InvalidOfferRate.selector);
         harness.validatePrice(false, renewUnits, netSellerAssets, RATE_6_PCT, RATE_6_PCT, DUR_90D);
 
@@ -252,7 +252,7 @@ contract ValidatePriceUnitTest is Test {
         uint256 limitRate = RATE_2_PCT; // 2% APR floor
         uint256 duration = DUR_365D;
 
-        // Price the bond at exactly the lender's limit rate
+        // Price the units at exactly the lender's limit rate
         uint256 price = _computePrice(true, RATE_2_PCT, DUR_365D);
         uint256 buyerAssets = (units * price) / WAD;
 

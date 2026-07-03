@@ -53,12 +53,12 @@ contract VaultSupplyClampFuzzTest is ClampFuzzFixtures {
     uint256 internal constant ORACLE_PRICE = 10e36;
 
     /// @dev Computes the minimum additionalDepositPercent to guarantee health at a given tick.
-    ///      health requires: (1 + pct) * bondPrice * oraclePrice / 1e36 * lltv >= WAD
-    ///      → pct >= WAD * 1e36 / (bondPrice * oraclePrice * lltv / WAD) - WAD
+    ///      health requires: (1 + pct) * unitPrice * oraclePrice / 1e36 * lltv >= WAD
+    ///      → pct >= WAD * 1e36 / (unitPrice * oraclePrice * lltv / WAD) - WAD
     function _minAdditionalDepositPercent(uint16 tick) internal pure returns (uint256) {
-        uint256 bondPrice = TickLib.tickToPrice(tick);
-        // denominator = bondPrice * ORACLE_PRICE / 1e36 * LLTV / WAD
-        uint256 denom = bondPrice.mulDivDown(ORACLE_PRICE, 1e36).mulDivDown(LLTV, WAD);
+        uint256 unitPrice = TickLib.tickToPrice(tick);
+        // denominator = unitPrice * ORACLE_PRICE / 1e36 * LLTV / WAD
+        uint256 denom = unitPrice.mulDivDown(ORACLE_PRICE, 1e36).mulDivDown(LLTV, WAD);
         if (denom == 0) return type(uint256).max;
         uint256 minPct = WAD.mulDivUp(WAD, denom);
         return minPct > WAD ? minPct - WAD + 0.01e18 : 0.01e18; // 1% buffer

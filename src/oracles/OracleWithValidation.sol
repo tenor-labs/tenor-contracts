@@ -18,15 +18,12 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 /// To make the validated configuration immutable, renounce ownership while validationCheckPaused is false.
 /// @dev The deviation is scaled by the primary price, so a threshold d allows up to d / (1 - d) overpricing
 /// relative to the validation oracle (e.g. 5% configured allows ~5.26% effective).
-/// @dev A validation oracle that signals failure by returning 0 instead of reverting is not caught by the
-/// try/catch: against a nonzero primary price the deviation check fails and price() reverts with
-/// ExcessiveOracleDeviation even when REVERT_ON_VALIDATION_ORACLE_FAILURE is false.
-/// @dev price() can return 0 to Morpho Markets: this happens when the primary oracle returns 0 and the deviation
-/// check does not revert because the validation check is paused, the validation price is also 0, or the validation
-/// call reverts while REVERT_ON_VALIDATION_ORACLE_FAILURE is false.
+/// @dev A validation oracle that returns 0 instead of reverting is not caught by the try/catch: against a nonzero
+/// primary price the deviation check fails, so price() reverts even when REVERT_ON_VALIDATION_ORACLE_FAILURE is false.
+/// @dev price() can return 0 to Morpho Markets: the primary oracle returns 0 while the validation check is paused,
+/// the validation price is also 0, or the validation call reverts while REVERT_ON_VALIDATION_ORACLE_FAILURE is false.
 /// @dev When REVERT_ON_VALIDATION_ORACLE_FAILURE is true, pausing the validation check is the only way to keep
-/// price() working if the validation oracle permanently breaks. Renouncing ownership removes that option:
-/// price() reverts until the validation oracle recovers.
+/// price() working if the validation oracle permanently breaks; renouncing ownership removes that option.
 contract OracleWithValidation is IOracleWithValidation, Ownable2Step {
     using UtilsLib for uint256;
 

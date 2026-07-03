@@ -14,19 +14,8 @@ import {WAD} from "@midnight/libraries/ConstantsLib.sol";
 
 /// @title CallbackFeeAdjuster
 /// @notice Default `ICallbackFeeAdjuster` implementation that mirrors Tenor's callback fee math.
-/// @dev `TenorRouter` sizes `takeUnits` against and books totals on the fee-adjusted amounts the initiator experiences.
 /// @dev Two fee formulas are supported via `FeeFormula`: INTEREST is the effective-price fee from `CallbackLib`
 /// (tick + feeRate), and PERCENTAGE is the flat `CallbackLib.percentageFee(initiatorAssets, feeRate)`.
-/// @dev The callback fee always lands on the initiator's own asset side. `beforeDispatch` learns that side from
-/// `fillIndex` (the router resolves `FillAxis.ASSETS` to the initiator's `BUYER_ASSETS`/`SELLER_ASSETS`), and
-/// `afterDispatch` learns it from the explicit `initiatorIsBuyer` flag. Both are driven by the router's
-/// `_initiatorIsBuyer`; the initiator is always the taker, so the fee falls on `!offer.buy`.
-/// @dev `beforeDispatch()` inverts `remainingBudget` into `takeUnits` using the worst-case per-unit price that composes
-/// Midnight's forward price (which bakes in the per-market `settlementFee`) with Tenor's effective-price adjustment. On
-/// the units axis, or when `feeRate == 0`, it falls back to `RouterLib.budgetToUnits`' tight inversion.
-/// @dev `afterDispatch()` reports the fee the callback charges on the initiator's side (`initiatorIsBuyer` is the buyer
-/// side, else the seller side). The router applies it in the initiator-worsening direction (`buyerAssets += fee` or
-/// `sellerAssets -= fee`), tightening accounting only.
 /// @dev The FeeFormula and feeRate in feeAdjusterData are caller-supplied and not checked against the offer's actual
 /// callback; mislabeled metadata under-reports fees against the batch's fill limits.
 contract CallbackFeeAdjuster is ICallbackFeeAdjuster {

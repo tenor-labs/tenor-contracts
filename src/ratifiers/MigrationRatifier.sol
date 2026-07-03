@@ -59,17 +59,23 @@ contract MigrationRatifier is BaseMigrationRatifier {
     {}
 
     /// @dev Accepting `onBehalf` lets bundler flows atomically update params alongside a take.
-    /// @dev Params are standing consent: never consumed, no amount cap or nonce, and opposite-direction params can be
-    /// live at once, so a keeper can repeatedly migrate the user's entire position in either direction while set.
-    /// Params set by a Midnight-authorized delegate survive a later revocation of that delegate.
-    /// @dev WARNING: routes are validated independently; crossing paths are not checked. Routes that loop back to the
-    /// starting market (e.g. both `BORROW_BLUE_TO_MIDNIGHT_CALLBACK` and `BORROW_MIDNIGHT_TO_BLUE_CALLBACK` between the
-    /// same markets) let a keeper renew through the full loop in one transaction. A loop must either carry a positive
+    ///
+    /// STANDING CONSENT:
+    /// Params are never consumed, have no amount cap or nonce, and opposite-direction params can be live at once, so
+    /// a keeper can repeatedly migrate the user's entire position in either direction while set. Params set by a
+    /// Midnight-authorized delegate survive a later revocation of that delegate.
+    ///
+    /// ROUTE LOOP SAFETY:
+    /// Routes are validated independently; crossing paths are not checked. Routes that loop back to the starting
+    /// market (e.g. both `BORROW_BLUE_TO_MIDNIGHT_CALLBACK` and `BORROW_MIDNIGHT_TO_BLUE_CALLBACK` between the same
+    /// markets) let a keeper renew through the full loop in one transaction. A loop must either carry a positive
     /// spread (enter rate > exit rate) or not have both legs active at once
     /// (e.g. `BlueToMidnight.minDuration > MidnightToBlue.renewalWindow`). The single-leg case is the same constraint:
     /// keep `renewalWindow < minDuration` or a freshly renewed position is immediately renewable, allowing repeated
     /// renewals (and fees) within one window.
-    /// @dev The target market choice is the user's responsibility: callbacks only check loan-token equality, not
+    ///
+    /// TARGET MARKET:
+    /// The target market choice is the user's responsibility: callbacks only check loan-token equality, not
     /// collateral quality, so a lend renewal can enter a market with pending bad debt that the lender later absorbs.
     function setParams(
         address onBehalf,
@@ -99,6 +105,9 @@ contract MigrationRatifier is BaseMigrationRatifier {
     /// @notice Midnight ratification entry point; reverts on any policy breach, returns CALLBACK_SUCCESS otherwise.
     /// @dev `ratifierData` must be `abi.encode(bytes32 sourceTenorMarketId, bytes32 targetTenorMarketId)`; `_ratify`
     /// validates `offer.maker`'s params for that tuple. Midnight only calls this on ratifiers the maker authorized.
+    /// @dev Make-on-behalf settlement guards (the user is the offer maker): proceeds must flow to `offer.callback` on
+    /// sells, and there is no taker-funded receiver on buys.
+    /// @dev The offer is confined to the reserved migration-group namespace (see `MIGRATION_GROUP_HEADER`).
     function isRatified(Offer memory offer, bytes memory ratifierData, address taker)
         external
         view
@@ -107,10 +116,7 @@ contract MigrationRatifier is BaseMigrationRatifier {
     {
         if (ratifierData.length != 64) revert InvalidRatifierData();
         (bytes32 src, bytes32 tgt) = abi.decode(ratifierData, (bytes32, bytes32));
-        // Make-on-behalf settlement guards, where the user is the offer maker:
-        // proceeds must flow to offer.callback on sells, and there is no taker-funded receiver on buys.
         if (offer.receiverIfMakerIsSeller != (offer.buy ? address(0) : offer.callback)) revert InvalidReceiver();
-        // Confine the offer to the reserved migration-group namespace defined by MIGRATION_GROUP_HEADER.
         if ((offer.group & MIGRATION_GROUP_HEADER_MASK) != MIGRATION_GROUP_HEADER) revert InvalidGroup();
         UserMigrationParams memory params = userParams[offer.maker][offer.callback][src][tgt];
         _ratify(offer.maker, taker, offer.callback, offer.callbackData, offer, src, tgt, params);

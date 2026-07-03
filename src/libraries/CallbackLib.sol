@@ -63,7 +63,6 @@ library CallbackLib {
     }
 
     /// @dev Returns the fraction of the offer interest taken as fee, (WAD - price) * feeRate / WAD, rounded down.
-    /// @dev Shared by both effective-price formulas.
     /// @dev Reverts if feeRate > WAD.
     /// @dev The caller must handle feeRate == 0 before calling.
     function _interestFeeComponent(uint256 price, uint256 feeRate) private pure returns (uint256) {

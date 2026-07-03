@@ -23,8 +23,7 @@ library CollateralTransferLib {
     /// on the source market until an exact-repayment fill occurs.
     /// @dev Only transfers tokens listed in both markets; source-only tokens are silently skipped and left on source.
     /// @return collateralTokens Token addresses, mirroring sourceMarket.collateralParams order.
-    /// @return collateralAmounts Amount transferred per token; 0 if the token was skipped, the source had no balance,
-    /// or the pro-rata amount rounded down to zero.
+    /// @return collateralAmounts Amount transferred per token; 0 if skipped, no source balance, or rounded to zero.
     function transferCollaterals(
         IMidnight morphoMidnight,
         Market memory sourceMarket,

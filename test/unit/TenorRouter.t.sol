@@ -75,7 +75,7 @@ contract TakeRouterTest is BoundaryTestBase {
         return keccak256(abi.encodePacked("router-test", block.timestamp, gasleft()));
     }
 
-    /// @dev SELL offer on target (maker sells bonds, taker buys paying loan tokens). Buyer-side batch.
+    /// @dev SELL offer on target (maker sells units, taker buys paying loan tokens). Buyer-side batch.
     function _sellOfferOnTarget(uint16 tick, address maker, uint256 makerSK)
         internal
         view
@@ -102,7 +102,7 @@ contract TakeRouterTest is BoundaryTestBase {
         return (offer, sig, HashLib.hashOffer(offer));
     }
 
-    /// @dev BUY offer on target (maker buys bonds, taker sells taking on debt). Seller-side batch.
+    /// @dev BUY offer on target (maker buys units, taker sells taking on debt). Seller-side batch.
     function _buyOfferOnTarget(uint16 tick, address maker, uint256 makerSK)
         internal
         view

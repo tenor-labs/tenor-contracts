@@ -47,7 +47,7 @@ contract BuyOfferClamp is ITakeClamp {
         if (buyerPrice > 0) {
             maxUnits = TakeMathLib.mulDivDownInverse(available, WAD, buyerPrice);
         } else {
-            maxUnits = type(uint128).max; // tick == 0 means a free bond.
+            maxUnits = type(uint128).max; // tick == 0 means free units.
         }
 
         maxUnits = TakeMathLib.capReduceOnly(MORPHO_MIDNIGHT, data.marketId, offer, maxUnits);

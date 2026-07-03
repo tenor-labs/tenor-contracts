@@ -16,7 +16,7 @@ import {IMidnightSupplyVaultSharesCallback} from "@callbacks/interfaces/IMidnigh
 /// @dev Offer consumption is checked structurally by TenorRouter.
 /// @dev Solvency is not enforced. A take can still revert on Midnight's post-callback health check if the
 /// vault share oracle price drops (e.g. underlying vault bad debt) between offer signing and take, or if
-/// additionalDepositPercent is set below the LLTV-derived minimum (WAD^2 / (bondPrice * oraclePrice * lltv) - WAD).
+/// additionalDepositPercent is set below the LLTV-derived minimum (WAD^2 / (unitPrice * oraclePrice * lltv) - WAD).
 /// @dev Routers/keepers must set Action.allowRevert = true so an unhealthy fill skips instead of reverting the batch.
 contract VaultSupplyClamp is ITakeClamp {
     IMidnight public immutable MORPHO_MIDNIGHT;
