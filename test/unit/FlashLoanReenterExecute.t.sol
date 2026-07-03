@@ -165,6 +165,7 @@ contract FlashLoanReenterExecuteTest is Fixtures {
             minFill: TAKE_UNITS,
             minPrice: 0,
             maxPrice: type(uint256).max,
+            maxContinuousFee: type(uint256).max,
             reduceOnly: false
         });
 

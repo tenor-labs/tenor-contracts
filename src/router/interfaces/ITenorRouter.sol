@@ -5,7 +5,8 @@ pragma solidity >=0.5.0;
 import {ExecuteParams, Action} from "../TenorRouter.sol";
 
 /// @title ITenorRouter
-/// @notice Interface of the router executing Midnight take batches with per-batch fill, price and crossing protections.
+/// @notice Interface of the router executing Midnight take batches with per-batch fill, price, continuous-fee and
+/// crossing protections.
 interface ITenorRouter {
     event BatchExecuted(
         address indexed initiator,
@@ -28,6 +29,7 @@ interface ITenorRouter {
     /// batch side (`!offer.buy`, since the initiator is always the taker).
     error InconsistentSide(uint256 index, bool batchIsBuyerSide);
     error InconsistentMarket(uint256 index);
+    error ContinuousFeeAboveMax();
     error EmptyActions();
     error ReduceOnlyViolated(uint256 wrongSideBefore, uint256 wrongSideAfter);
 

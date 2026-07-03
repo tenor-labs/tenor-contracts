@@ -36,6 +36,7 @@ struct ExecuteParams {
     uint256 minFill; // Denominated in assets or units depending on fillAxis.
     uint256 minPrice; // WAD-scaled assets-per-unit floor on the batch side (0 disables).
     uint256 maxPrice; // WAD-scaled assets-per-unit ceiling on the batch side (MaxUint disables).
+    uint256 maxContinuousFee; // Ceiling on the batch market's continuous fee (MaxUint disables).
     bool reduceOnly; // Crossing protection: reverts if the initiator's wrong side grows.
 }
 
@@ -72,8 +73,8 @@ struct Action {
 }
 
 /// @title TenorRouter
-/// @notice Executes batches of Midnight takes with the initiator as the Midnight taker, with per-batch fill, price
-/// and crossing protections.
+/// @notice Executes batches of Midnight takes with the initiator as the Midnight taker, with per-batch fill, price,
+/// continuous-fee and crossing protections.
 /// @dev The initiator (`msg.sender` here, `Bundler3.initiator()` in the adapter) drives the batch and is always the
 /// Midnight taker; `offer.maker` is the counterparty providing liquidity for a given action.
 /// @dev Self-take is not explicitly rejected: `offer.maker == initiator` makes maker and taker the same account, so
@@ -146,7 +147,11 @@ abstract contract TenorRouter is ITenorRouter {
         uint8 sideAssetsIndex = initiatorIsBuyer ? RouterLib.FILL_BUYER_ASSETS : RouterLib.FILL_SELLER_ASSETS;
         uint8 fillIndex = params.fillAxis == FillAxis.UNITS ? RouterLib.FILL_UNITS : sideAssetsIndex;
 
-        bytes32 expectedMarketId = IdLib.toId(actions[0].offer.market);
+        bytes32 expectedMarketId = _MORPHO_MIDNIGHT.touchMarket(actions[0].offer.market);
+
+        if (_MORPHO_MIDNIGHT.continuousFee(expectedMarketId) > params.maxContinuousFee) {
+            revert ContinuousFeeAboveMax();
+        }
 
         uint256 wrongSideBefore;
         if (params.reduceOnly) {
@@ -262,7 +267,7 @@ abstract contract TenorRouter is ITenorRouter {
     {
         MidnightTakeData calldata d = action.take;
 
-        bytes32 marketId = _MORPHO_MIDNIGHT.touchMarket(action.offer.market);
+        bytes32 marketId = IdLib.toId(action.offer.market);
 
         uint256 takeUnits = _capTakeUnits(action, d.takeUnits, fillIndex, remaining, marketId);
         if (takeUnits == 0) return (true, 0, 0, 0, marketId, "");
