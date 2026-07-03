@@ -15,8 +15,8 @@ import {IVaultV2} from "@vault-v2/interfaces/IVaultV2.sol";
 /// @dev VaultV2's forceDeallocate penalty can only be paid in vault shares, burned via a withdraw that requires
 /// canSendShares on the holder; denying it to that holder breaks this non-custodial in-kind redemption guarantee.
 /// @dev A restrictive canReceiveShares allowlist can break the same guarantee: if only contracts can receive shares,
-/// users never hold shares directly, and unless an allowlisted holder exposes a way to call forceDeallocate (or
-/// approves an account that can), the escape hatch is unreachable.
+/// users never hold shares directly, and unless an allowlisted holder exposes a way to call forceDeallocate or
+/// approves an account that can, the escape hatch is unreachable.
 contract VaultV2AllowlistGate is
     IReceiveSharesGate,
     ISendSharesGate,

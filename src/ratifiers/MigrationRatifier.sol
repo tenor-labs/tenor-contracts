@@ -13,10 +13,10 @@ import {IMigrationRatifier} from "./interfaces/IMigrationRatifier.sol";
 /// @dev Midnight calls `isRatified` when this contract is the offer's `ratifier` and the maker has authorized it on
 /// Midnight. The ratification flow is implemented in `BaseMigrationRatifier._ratify`.
 /// @dev The offer's `ratifierData` must be `abi.encode(bytes32 sourceTenorMarketId, bytes32 targetTenorMarketId)`.
-/// @dev A Tenor market ID excludes maturity (see TenorMarketIdLib), so the params key is maturity-agnostic: one
+/// @dev A Tenor market ID excludes maturity, per TenorMarketIdLib, so the params key is maturity-agnostic: one
 /// `setParams` applies across every maturity of that market.
-/// @dev `setParams`/`clearParams` use the Midnight contract as authorization authority (caller must be `onBehalf` or
-/// authorized by it on Midnight).
+/// @dev `setParams`/`clearParams` use the Midnight contract as authorization authority: the caller must be `onBehalf`
+/// or authorized by it on Midnight.
 contract MigrationRatifier is BaseMigrationRatifier {
     /// @inheritdoc IMigrationRatifier
     /// @dev Top 6 bytes = "tenor" (0x74656e6f72) domain prefix + schema version byte 0xE0; the 0xE0–0xEF
@@ -107,10 +107,10 @@ contract MigrationRatifier is BaseMigrationRatifier {
     {
         if (ratifierData.length != 64) revert InvalidRatifierData();
         (bytes32 src, bytes32 tgt) = abi.decode(ratifierData, (bytes32, bytes32));
-        // Make-on-behalf settlement guards (the user is the offer maker):
+        // Make-on-behalf settlement guards, where the user is the offer maker:
         // proceeds must flow to offer.callback on sells, and there is no taker-funded receiver on buys.
         if (offer.receiverIfMakerIsSeller != (offer.buy ? address(0) : offer.callback)) revert InvalidReceiver();
-        // Confine the offer to the reserved migration-group namespace (see MIGRATION_GROUP_HEADER).
+        // Confine the offer to the reserved migration-group namespace defined by MIGRATION_GROUP_HEADER.
         if ((offer.group & MIGRATION_GROUP_HEADER_MASK) != MIGRATION_GROUP_HEADER) revert InvalidGroup();
         UserMigrationParams memory params = userParams[offer.maker][offer.callback][src][tgt];
         _ratify(offer.maker, taker, offer.callback, offer.callbackData, offer, src, tgt, params);

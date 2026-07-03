@@ -18,8 +18,8 @@ import {IMarketMakingPolicy} from "../interfaces/IMarketMakingPolicy.sol";
 /// flag and the maturities provided by the ratifier.
 /// @dev getRate reverts on Midnight to Midnight renewals (both source and target maturities nonzero); not supported.
 /// @dev Lend-only: only lend entry and exit flows are supported (vault -> Midnight and Midnight -> vault).
-/// @dev `setCurve`/`clearCurve` use the Midnight contract as authorization authority (caller must be `onBehalf` or
-/// authorized by it on Midnight); each maker's curve is stored per `(onBehalf, tenorMarketId)`.
+/// @dev `setCurve`/`clearCurve` use the Midnight contract as authorization authority: the caller must be `onBehalf`
+/// or authorized by it on Midnight; each maker's curve is stored per `(onBehalf, tenorMarketId)`.
 contract MarketMakingPolicy is IMarketMakingPolicy {
     using UtilsLib for uint256;
 

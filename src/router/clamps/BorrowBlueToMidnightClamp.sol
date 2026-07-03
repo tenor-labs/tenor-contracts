@@ -16,7 +16,7 @@ import {MorphoBalancesLib} from "../../../lib/morpho-blue/src/libraries/peripher
 /// @dev feeRate in the clamp data must match the feeRate in the callback data.
 /// @dev `positionOwner` is passed in clampData; for a ratified migration offer it equals `offer.maker`.
 /// @dev This clamp does not check health: under the same-collateral assumption health is binary, and if the borrower is
-/// healthy in source they will be healthy in target (collateral migrates pro-rata).
+/// healthy in source they will be healthy in target since collateral migrates pro-rata.
 /// @dev The router's try/catch (fail-safe mode) handles edge cases.
 /// @dev Offer consumption is checked structurally by TenorRouter.
 contract BorrowBlueToMidnightClamp is ITakeClamp {

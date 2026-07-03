@@ -133,12 +133,12 @@ abstract contract MidnightAdapterBase is CoreAdapter, IMidnightAdapter {
 
     /// @notice Callback from Morpho Midnight during flash loan.
     /// @dev Allows reentering bundler during Morpho Midnight.flashLoan
-    /// @dev `caller` must be this adapter. Legitimate flash loans originate from `midnightFlashLoan`
-    ///      (which calls `Midnight.flashLoan` as `msg.sender = adapter`). Rejecting other callers
+    /// @dev `caller` must be this adapter. Legitimate flash loans originate from `midnightFlashLoan`,
+    ///      which calls `Midnight.flashLoan` as `msg.sender = adapter`. Rejecting other callers
     ///      blocks an external party from forcing the adapter onto a `flashLoan` payer slot,
-    ///      where any token with a residual max allowance (set by a prior `midnightFlashLoan`)
+    ///      where any token with a residual max allowance, set by a prior `midnightFlashLoan`,
     ///      would otherwise let them consume the bundle's reenter slot at no cost.
-    /// @param data Bytes containing an abi-encoded `Call[]` (must be `memory` per `IFlashLoanCallback` interface).
+    /// @param data Bytes containing an abi-encoded `Call[]`; must be `memory` per the `IFlashLoanCallback` interface.
     function onFlashLoan(address caller, address[] memory, uint256[] memory, bytes memory data)
         external
         returns (bytes32)
@@ -151,7 +151,7 @@ abstract contract MidnightAdapterBase is CoreAdapter, IMidnightAdapter {
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Handles callbacks from Morpho Midnight (which use `bytes memory`).
+    /// @dev Handles callbacks from Morpho Midnight, which use `bytes memory`.
     /// @dev Sender validation already done in caller.
     /// @dev Manual call needed because CoreAdapter.reenterBundler3 expects calldata, but Morpho Midnight callbacks
     /// provide memory

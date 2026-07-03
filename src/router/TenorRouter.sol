@@ -26,7 +26,7 @@ enum FillAxis {
 /// @dev `maxFill`/`minFill` = `type(uint256).max` is a renewal/close-out sentinel resolved against onchain state by
 /// `TenorRouterAdapterBase._resolveSentinel`, not the ERC-20 "unlimited" idiom.
 /// @dev Sentinel resolution reverts `SentinelResolvedToZero` if it yields 0; opening flows must pass explicit bounds.
-/// @dev `fillAxis == ASSETS` caps and the slippage denominator both pin to the batch's side (see `_initiatorIsBuyer`).
+/// @dev `fillAxis == ASSETS` caps and the slippage denominator both pin to the batch's side; see `_initiatorIsBuyer`.
 /// @dev `_execute` enforces that all actions share the same market (`InconsistentMarket`) and the same side
 /// (`InconsistentSide`). The initiator is always the Midnight taker.
 struct ExecuteParams {
@@ -41,7 +41,7 @@ struct ExecuteParams {
 
 /// @notice The Midnight take parameters carried by each `Action`.
 /// @dev If `takerCallback` reenters Bundler3 (e.g. `TenorAdapter`), at most one such action may execute per
-/// top-level `Bundler3.multicall` `Call` entry (see `MidnightAdapterBase._midnightCallback`).
+/// top-level `Bundler3.multicall` `Call` entry; see `MidnightAdapterBase._midnightCallback`.
 /// @dev With `Action.allowRevert = true`, follow-up reentrant actions in the same batch silently no-op with
 /// `IncorrectReenterHash` instead of failing the call.
 struct MidnightTakeData {
@@ -125,8 +125,8 @@ abstract contract TenorRouter is ITenorRouter {
     /// initiator-worsening direction, across all fills.
     /// @dev `rawTotals` holds the amounts Midnight actually matched onchain (pre-adjustment), accumulated
     /// unconditionally. The initiator is always the taker here, so these are exclusively its taker-side fills,
-    /// disjoint from its maker-side fills (resting offers filled during the batch, e.g. via reentrancy) that Midnight
-    /// already counts under `consumed[initiator][group]`.
+    /// disjoint from its maker-side fills that Midnight already counts under `consumed[initiator][group]`: resting
+    /// offers filled during the batch, e.g. via reentrancy.
     /// @dev To reconcile the initiator's consumption, add `rawTotals` to `consumed[initiator][group]`: the two never
     /// overlap, so the sum does not double-count. Reconcile against `rawTotals`, not the fee-adjusted `totals`.
     function _execute(ExecuteParams calldata params, Action[] calldata actions, uint256 maxFill, uint256 minFill)

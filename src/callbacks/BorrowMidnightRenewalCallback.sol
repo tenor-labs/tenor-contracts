@@ -17,7 +17,7 @@ import {IdLib} from "@midnight/libraries/IdLib.sol";
 /// @dev The offer's receiverIfMakerIsSeller (or receiverIfTakerIsSeller when the taker sells) must be this contract
 /// so that sellerAssets are transferred here before onSell is called; onSell reverts with InvalidReceiver otherwise.
 /// @dev Repays the source Midnight market debt with the sale proceeds (minus fee) and transfers collateral to the
-/// target Midnight market pro-rata to the repaid debt (all of it on the final fill).
+/// target Midnight market pro-rata to the repaid debt, all of it on the final fill.
 /// @dev The borrower must authorize this contract on Morpho Midnight (debt repayment and collateral transfer).
 /// @dev The source and target markets must list the same collateral token set. Only the loan token is checked
 /// onchain; collateral tokens missing from the target market are skipped and stay on the source market.

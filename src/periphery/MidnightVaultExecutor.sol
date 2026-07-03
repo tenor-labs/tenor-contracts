@@ -18,8 +18,8 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// @dev Funds must be supplied within the same call; a balance parked across calls is neither usable nor recoverable.
 /// @dev VaultV2 deposits can revert if a liquidity-adapter cap of the vault is reached, blocking otherwise valid
 /// deposit-and-add-collateral flows.
-/// @dev Uses the Midnight contract as authorization authority (caller must be `onBehalf` or authorized by it on
-/// Midnight).
+/// @dev Uses the Midnight contract as authorization authority: the caller must be `onBehalf` or authorized by it on
+/// Midnight.
 ///
 /// VAULT SAFETY REQUIREMENTS
 /// @dev List of assumptions on the vault that guarantee this executor behaves as expected:

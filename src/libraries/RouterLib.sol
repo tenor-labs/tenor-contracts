@@ -48,7 +48,7 @@ library RouterLib {
     /// @dev Returns the net per-unit price the buyer-as-taker pays onchain, used to invert remainingBudget to
     /// maxUnits under the interest fee formula.
     /// @dev Returns the max of Midnight's price (offerPrice + settlementFee) and buyerEffectivePrice. The callback
-    /// fee is zero-floored against Midnight's fee (see CallbackLib), so the max is the price the buyer actually pays
+    /// fee is zero-floored against Midnight's fee in CallbackLib, so the max is the price the buyer actually pays
     /// and dividing remainingBudget by it cannot overshoot the budget.
     /// @param offerPrice The offer price (TickLib.tickToPrice(offer.tick)).
     /// @param settlementFee Midnight's per-market settlement fee for the time-to-maturity.
@@ -63,7 +63,7 @@ library RouterLib {
     /// @dev Returns the net per-unit price the seller-as-taker receives onchain, used to invert remainingBudget to
     /// maxUnits under the interest fee formula.
     /// @dev Returns the min of Midnight's price (offerPrice - settlementFee, zero-floored) and sellerEffectivePrice.
-    /// The callback fee is zero-floored against Midnight's fee (see CallbackLib), so the min is the price the seller
+    /// The callback fee is zero-floored against Midnight's fee in CallbackLib, so the min is the price the seller
     /// actually receives and any larger units count would push the receipt past remainingBudget.
     /// @param offerPrice The offer price (TickLib.tickToPrice(offer.tick)).
     /// @param settlementFee Midnight's per-market settlement fee for the time-to-maturity.

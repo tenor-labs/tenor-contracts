@@ -16,12 +16,12 @@ library CollateralTransferLib {
     using SafeERC20 for IERC20;
     using CallbackLib for Market;
 
-    /// @dev Transfers collateral from the source to the target market, pro-rata to the repaid debt, rounded down
-    /// (all on the final fill, to avoid dust).
+    /// @dev Transfers collateral from the source to the target market, pro-rata to the repaid debt, rounded down;
+    /// all on the final fill to avoid dust.
     /// @dev The final fill is detected by exact equality repaidUnits == sourceDebtBefore; with a nonzero
     /// fee, fills sized to the remaining offer capacity may never satisfy it, leaving residual debt and collateral
     /// on the source market until an exact-repayment fill occurs.
-    /// @dev Only transfers tokens listed in both markets; source-only tokens are silently skipped (left on source).
+    /// @dev Only transfers tokens listed in both markets; source-only tokens are silently skipped and left on source.
     /// @return collateralTokens Token addresses, mirroring sourceMarket.collateralParams order.
     /// @return collateralAmounts Amount transferred per token; 0 if the token was skipped, the source had no balance,
     /// or the pro-rata amount rounded down to zero.

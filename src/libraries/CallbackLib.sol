@@ -38,7 +38,7 @@ library CallbackLib {
     }
 
     /// @dev Returns whether token is listed in the market's collaterals and, if so, its index.
-    /// @dev Assumes collaterals are sorted ascending by token address (Morpho Midnight invariant).
+    /// @dev Assumes collaterals are sorted ascending by token address, a Morpho Midnight invariant.
     function findCollateral(Market memory market, address token) internal pure returns (bool found, uint256 index) {
         CollateralParams[] memory collaterals = market.collateralParams;
         uint256 length = collaterals.length;

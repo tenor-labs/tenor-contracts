@@ -24,7 +24,7 @@ library TakeMathLib {
     /// @dev This guarantees the returned units never cause consumed to overshoot the offer's max.
     /// @dev A zero-priced asset cap does not bound unit exposure: the returned capacity is
     /// type(uint128).max even though offer.maxAssets is finite.
-    /// @param marketId The pre-computed market ID (avoids a redundant toId call for asset-denominated offers).
+    /// @param marketId The pre-computed market ID; avoids a redundant toId call for asset-denominated offers.
     function getOfferRemaining(IMidnight morphoMidnight, Offer calldata offer, bytes32 marketId)
         internal
         view
@@ -199,8 +199,8 @@ library TakeMathLib {
     }
 
     /// @dev Caps maxUnits by the maker's existing position when the offer is reduceOnly; no-op otherwise.
-    /// @dev BUY offers: caps by the buyer's debt (prevents crossing to credit).
-    /// @dev SELL offers: caps by the seller's credit (prevents crossing to debt).
+    /// @dev BUY offers: caps by the buyer's debt to prevent crossing to credit.
+    /// @dev SELL offers: caps by the seller's credit to prevent crossing to debt.
     function capReduceOnly(IMidnight morphoMidnight, bytes32 marketId, Offer calldata offer, uint256 maxUnits)
         internal
         view

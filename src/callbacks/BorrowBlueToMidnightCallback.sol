@@ -19,7 +19,7 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// @dev The offer's receiverIfMakerIsSeller (or receiverIfTakerIsSeller when the taker sells) must be this contract
 /// so that sellerAssets are transferred here before onSell is called; onSell reverts with InvalidReceiver otherwise.
 /// @dev Repays the Morpho Blue debt with the sale proceeds (minus fee) and migrates collateral to Midnight pro-rata
-/// to the repaid debt (all of it on the final fill).
+/// to the repaid debt, all of it on the final fill.
 /// @dev The borrower must authorize this contract on Morpho Blue (collateral withdrawal) and Morpho Midnight
 /// (collateral supply).
 /// @dev Pre-existing Midnight positions are netted: the borrower can end up with collateral but no debt on Midnight.

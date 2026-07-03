@@ -9,7 +9,7 @@ import {IBuyCallback} from "@midnight/interfaces/ICallbacks.sol";
 /// @dev Enables borrowers to repay debt using vault share collateral.
 interface IMidnightWithdrawVaultSharesCallback is IBuyCallback {
     /// @notice Data encoded in the offer's callbackData.
-    /// @param vault The ERC-4626 vault to redeem from (must be the collateral token).
+    /// @param vault The ERC-4626 vault to redeem from; must be the collateral token.
     /// @param collateralIndex The index of the vault in the market's collateralParams array.
     struct CallbackData {
         address vault;
