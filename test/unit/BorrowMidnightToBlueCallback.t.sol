@@ -532,6 +532,110 @@ contract BorrowMidnightToBlueCallbackTest is Fixtures {
         assertGt(bluePos.borrowShares, 0, "Blue borrow created even with zero fee");
     }
 
+    /* ========== ZERO-COLLATERAL PARTIAL FILL (TRST-M-01) ========== */
+
+    /// @notice A tiny partial fill whose pro-rata collateral rounds to zero migrates debt only,
+    /// instead of reverting on Morpho Blue's zero-asset supplyCollateral check. The Blue borrow
+    /// stays healthy because the borrower pre-seeded collateral on Blue.
+    function test_onBuy_tinyPartialFill_zeroCollateralMigrated_succeeds() public {
+        // Make collateral 1e12x more valuable than the loan token so positions are healthy
+        // with a raw collateral amount far below the raw debt amount.
+        oracle.setPrice(1e36 * 1e12);
+
+        uint256 debtAmount = 10e18;
+        uint256 collateralAmount = 1e8;
+        bytes32 sourceMarketId = IdLib.toId(sourceMarket);
+
+        // Midnight source position: small raw collateral, large raw debt
+        collateralToken.mint(borrower, collateralAmount);
+        vm.startPrank(borrower);
+        collateralToken.approve(address(midnight), collateralAmount);
+        midnight.supplyCollateral(sourceMarket, 0, collateralAmount, borrower);
+        vm.stopPrank();
+
+        // Create the Midnight debt by having the borrower take a lender's BUY offer
+        (address lender, uint256 lenderSK) = makeAddrAndKey("lender");
+        loanToken.mint(lender, debtAmount * 2);
+        vm.startPrank(lender);
+        loanToken.approve(address(midnight), debtAmount * 2);
+        midnight.setIsAuthorized(address(ecrecoverRatifier), true, lender);
+        vm.stopPrank();
+
+        Offer memory setupOffer = Offer({
+            market: sourceMarket,
+            buy: true,
+            maker: lender,
+            start: block.timestamp,
+            expiry: block.timestamp + 1 hours,
+            tick: MAX_TICK,
+            group: keccak256(abi.encodePacked("setup_tiny_fill", block.timestamp)),
+            callback: address(0),
+            callbackData: "",
+            receiverIfMakerIsSeller: address(0),
+            ratifier: address(ecrecoverRatifier),
+            reduceOnly: false,
+            maxUnits: type(uint128).max,
+            maxAssets: 0,
+            continuousFeeCap: type(uint256).max
+        });
+        Signature memory setupSig = _signOffer(setupOffer, lenderSK);
+        vm.prank(borrower);
+        midnight.take(
+            setupOffer,
+            abi.encode(setupSig, HashLib.hashOffer(setupOffer), uint256(0), new bytes32[](0)),
+            debtAmount,
+            borrower,
+            setupOffer.maker,
+            address(0),
+            ""
+        );
+        assertEq(midnight.debt(sourceMarketId, borrower), debtAmount, "Borrower should have Midnight debt");
+
+        // Pre-seed Blue collateral so the debt-only migration passes Blue's health check
+        collateralToken.mint(borrower, 1e8);
+        vm.startPrank(borrower);
+        collateralToken.approve(address(morphoBlue), 1e8);
+        morphoBlue.supplyCollateral(targetMarketParams, 1e8, borrower, "");
+        morphoBlue.setAuthorization(address(callback), true);
+        loanToken.approve(address(midnight), type(uint256).max);
+        vm.stopPrank();
+
+        // Supply Blue liquidity for the borrow
+        loanToken.mint(address(this), 100e18);
+        loanToken.approve(address(morphoBlue), 100e18);
+        morphoBlue.supply(targetMarketParams, 100e18, 0, address(this), "");
+
+        // Taker (seller) needs Midnight collateral for the post-take health check
+        collateralToken.mint(taker, 1e8);
+        vm.startPrank(taker);
+        collateralToken.approve(address(midnight), 1e8);
+        midnight.supplyCollateral(sourceMarket, 0, 1e8, taker);
+        vm.stopPrank();
+
+        IBorrowMidnightToBlueCallback.CallbackData memory data = IBorrowMidnightToBlueCallback.CallbackData({
+            targetMarketParams: targetMarketParams, feeRate: 0, feeRecipient: address(0)
+        });
+
+        // units * sourceCollateral < sourceDebtBefore => collateralMigrated rounds down to zero
+        _takeBuyOffer(1e10, data);
+
+        assertLt(midnight.debt(sourceMarketId, borrower), debtAmount, "Midnight debt should decrease");
+        assertEq(
+            midnight.collateral(sourceMarketId, borrower, 0),
+            collateralAmount,
+            "No collateral should be withdrawn on tiny fill"
+        );
+
+        Id blueMarketId = MarketParamsLib.id(targetMarketParams);
+        Position memory bluePos = morphoBlue.position(blueMarketId, borrower);
+        assertGt(bluePos.borrowShares, 0, "Blue borrow created");
+        assertEq(bluePos.collateral, 1e8, "Blue collateral should be the pre-seeded amount only");
+
+        // Callback should retain no tokens
+        assertEq(loanToken.balanceOf(address(callback)), 0, "Callback should retain no loan tokens");
+        assertEq(collateralToken.balanceOf(address(callback)), 0, "Callback should retain no collateral tokens");
+    }
+
     /* ========== POSITION CROSSING ========== */
 
     /// @dev Take MORE units than the borrower's debt to cross from debt to credit.
