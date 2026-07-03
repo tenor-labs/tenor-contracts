@@ -52,6 +52,7 @@ interface IMidnightAdapter is IFlashLoanCallback {
     ) external;
 
     /// @notice Withdraws from a market on Morpho Midnight on behalf of the initiator.
+    /// @dev Does not cap on available liquidity. Reverts if the market's `withdrawable` liquidity is insufficient.
     /// @param market The market to withdraw from.
     /// @param units The amount of market units to withdraw. Pass `type(uint256).max` to withdraw all the
     ///        initiator's credit after position update (slashing + fee accrual).

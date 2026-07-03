@@ -54,6 +54,8 @@ struct MidnightTakeData {
 /// @notice Per-action parameters.
 /// @dev `take` carries the Midnight take parameters (`MidnightTakeData`).
 /// @dev `allowRevert` only catches reverts from the inner `take` call; other per-action paths still abort the batch.
+/// @dev `allowRevert` does not bound the caught call's gas: a reverting action can consume most of the batch's
+/// remaining gas before being caught.
 /// @dev `feeAdjuster`/`feeAdjusterData` are trusted to mirror the callback's actual fee (formula and rate); the
 /// router does not cross-check them. Misconfigured fee adjustment params may skew fill/slippage accounting for the
 /// whole batch. `feeAdjuster` may be `address(0)` when callbacks charge no initiator fees.
@@ -257,8 +259,7 @@ abstract contract TenorRouter is ITenorRouter {
         if (takeUnits == 0) return (true, 0, 0, 0, marketId, "");
 
         address loanToken = action.offer.market.loanToken;
-        // Lender path with no takerCallback: Midnight resolves payer to msg.sender (this contract),
-        // so give it a temporary allowance for the in-flight take.
+        // Lender path with no takerCallback: Midnight resolves payer to msg.sender (this contract).
         bool routerIsPayer = d.takerCallback == address(0) && !action.offer.buy;
         if (routerIsPayer) {
             SafeERC20.forceApprove(IERC20(loanToken), address(_MORPHO_MIDNIGHT), type(uint256).max);
@@ -275,10 +276,8 @@ abstract contract TenorRouter is ITenorRouter {
         ) returns (
             uint256 r0, uint256 r1
         ) {
-            if (routerIsPayer) SafeERC20.forceApprove(IERC20(loanToken), address(_MORPHO_MIDNIGHT), 0);
             return (true, r0, r1, takeUnits, marketId, "");
         } catch (bytes memory reason) {
-            if (routerIsPayer) SafeERC20.forceApprove(IERC20(loanToken), address(_MORPHO_MIDNIGHT), 0);
             return (false, 0, 0, 0, marketId, reason);
         }
     }

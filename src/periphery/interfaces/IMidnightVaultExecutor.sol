@@ -14,6 +14,8 @@ import {Market} from "@midnight/interfaces/IMidnight.sol";
 /// @dev The caller must be authorized to act for `onBehalf` on Midnight.
 /// @dev `onLiquidate` reverts unless the liquidation's seized-collateral receiver is this executor; the redeem would
 /// otherwise burn the executor's own resting vault shares.
+/// @dev `onLiquidate` funds the repayment strictly from redeeming the seized shares and reverts with
+/// `RepayExceedsRedeemed` if the redeem falls short of the repaid amount; prefunding the executor does not help.
 interface IMidnightVaultExecutor {
     error Unauthorized();
     error InvalidInput();
