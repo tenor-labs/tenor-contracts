@@ -487,6 +487,49 @@ contract BorrowBlueToMidnightCallbackTest is Fixtures {
         assertEq(collateralToken.balanceOf(address(callback)), 0, "Callback should retain no collateral tokens");
     }
 
+    /* ========== ZERO-COLLATERAL PARTIAL FILL (TRST-M-01) ========== */
+
+    /// @notice A tiny partial fill whose pro-rata collateral rounds to zero migrates debt only,
+    /// instead of reverting on Morpho Blue's zero-asset withdrawCollateral check.
+    function test_onSell_tinyPartialFill_zeroCollateralMigrated_succeeds() public {
+        // Make collateral 1e12x more valuable than the loan token so the Blue position is
+        // healthy with a raw collateral amount far below the raw debt amount.
+        oracle.setPrice(1e36 * 1e12);
+
+        uint256 debtAmount = 10e18;
+        uint256 collateralAmount = 1e8;
+        _setupBorrowerBluePosition(debtAmount, collateralAmount);
+
+        // Supply Midnight collateral so the position stays healthy after the debt-only migration
+        collateralToken.mint(borrower, 1e8);
+        vm.startPrank(borrower);
+        collateralToken.approve(address(midnight), 1e8);
+        midnight.supplyCollateral(targetMarket, 0, 1e8, borrower);
+        midnight.setIsAuthorized(address(callback), true, borrower);
+        vm.stopPrank();
+
+        Id sourceBlueMarketId = sourceMarketParams.id();
+        Position memory posBefore = morphoBlue.position(sourceBlueMarketId, borrower);
+        bytes32 targetMarketId = IdLib.toId(targetMarket);
+        uint256 midnightColBefore = midnight.collateral(targetMarketId, borrower, 0);
+
+        IBorrowBlueToMidnightCallback.CallbackData memory callbackData = IBorrowBlueToMidnightCallback.CallbackData({
+            sourceMarketParams: sourceMarketParams, feeRate: 0, feeRecipient: address(0), tick: MAX_TICK
+        });
+
+        // repayBudget * blueCollateral < blueDebt => collateralMigrated rounds down to zero
+        _takeSellOffer(1e10, 0.95e18, callbackData);
+
+        Position memory posAfter = morphoBlue.position(sourceBlueMarketId, borrower);
+        assertLt(posAfter.borrowShares, posBefore.borrowShares, "Blue debt should be partially repaid");
+        assertEq(posAfter.collateral, posBefore.collateral, "No collateral should be migrated on tiny fill");
+        assertEq(midnight.collateral(targetMarketId, borrower, 0), midnightColBefore, "Midnight collateral unchanged");
+
+        // Callback should retain no tokens
+        assertEq(loanToken.balanceOf(address(callback)), 0, "Callback should retain no loan tokens");
+        assertEq(collateralToken.balanceOf(address(callback)), 0, "Callback should retain no collateral tokens");
+    }
+
     /* ========== HELPER FUNCTIONS ========== */
 
     /// @dev Sign an offer using EIP-712
