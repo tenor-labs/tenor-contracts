@@ -55,6 +55,8 @@ struct MidnightTakeData {
 /// @notice Per-action parameters.
 /// @dev `take` carries the Midnight take parameters (`MidnightTakeData`).
 /// @dev `allowRevert` only catches reverts from the inner `take` call; other per-action paths still abort the batch.
+/// @dev `allowRevert` does not bound the caught call's gas: a reverting action can consume most of the batch's
+/// remaining gas before being caught.
 /// @dev `feeAdjuster`/`feeAdjusterData` are trusted to mirror the callback's actual fee (formula and rate); the
 /// router does not cross-check them against callbacks that may charge fees to the initiator. Misconfigured fee
 /// adjustment params may skew fill/slippage accounting for the whole batch. `feeAdjuster` may safely be set to
