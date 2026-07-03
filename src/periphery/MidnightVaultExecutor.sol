@@ -31,12 +31,11 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// - It must not re-enter Midnight nor this executor on `deposit`, `mint`, `previewMint` nor `redeem`.
 ///
 /// LIQUIDATION SELF-FUNDING LIMITATIONS
-/// @dev `onLiquidate` funds the repayment strictly from redeeming the seized shares: prefunding does not help (the
-/// check uses the redeem's return value, not the balance). Any skew between the oracle price and the vault's
-/// redemption rate, and any rounding loss (a few wei), are deducted from the liquidator's incentive bonus (the
-/// seized value in excess of `repaidUnits`). When the loss exceeds the bonus (i.e. `lltv == WAD`,
-/// `liquidationCursor == 0`, the first seconds of the post-maturity incentive ramp, or dust-sized `repaidUnits`),
-/// the liquidation reverts with `RepayExceedsRedeemed`.
+/// @dev `onLiquidate` funds the repayment strictly from redeeming the seized shares: prefunding does not help. Any
+/// skew between the oracle price and the vault's redemption rate, and any rounding loss, are deducted from the
+/// liquidator's incentive bonus (the seized value in excess of `repaidUnits`). When the loss exceeds the bonus
+/// (i.e. `lltv == WAD`, `liquidationCursor == 0`, the first seconds of the post-maturity incentive ramp, or
+/// dust-sized `repaidUnits`), the liquidation reverts with `RepayExceedsRedeemed`.
 contract MidnightVaultExecutor is IMidnightVaultExecutor, IRepayCallback, ILiquidateCallback {
     using SafeERC20 for IERC20;
 
@@ -114,7 +113,7 @@ contract MidnightVaultExecutor is IMidnightVaultExecutor, IRepayCallback, ILiqui
 
     /* LIQUIDATOR FUNCTIONS */
 
-    /// @dev Funded solely by redeeming the seized shares; see LIQUIDATION SELF-FUNDING LIMITATIONS above.
+    /// @dev Funded solely by redeeming the seized shares.
     function onLiquidate(
         address liquidator,
         bytes32,

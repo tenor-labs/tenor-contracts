@@ -16,7 +16,6 @@ import {Market} from "@midnight/interfaces/IMidnight.sol";
 /// otherwise burn the executor's own resting vault shares.
 /// @dev `onLiquidate` funds the repayment strictly from redeeming the seized shares and reverts with
 /// `RepayExceedsRedeemed` if the redeem falls short of the repaid amount; prefunding the executor does not help.
-/// See the implementation's LIQUIDATION SELF-FUNDING LIMITATIONS NatSpec.
 interface IMidnightVaultExecutor {
     error Unauthorized();
     error InvalidInput();
