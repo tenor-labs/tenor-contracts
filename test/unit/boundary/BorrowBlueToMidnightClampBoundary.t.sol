@@ -8,8 +8,8 @@ import {ITakeClamp} from "../../../src/router/interfaces/ITakeClamp.sol";
 import {IBorrowBlueToMidnightCallback} from "@callbacks/interfaces/IBorrowBlueToMidnightCallback.sol";
 import {Offer} from "@midnight/interfaces/IMidnight.sol";
 import {Signature} from "@midnight/ratifiers/interfaces/IEcrecoverRatifier.sol";
-import {Id, MarketParams} from "../../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 
 /// @title BorrowBlueToMidnightClampBoundary
 /// @notice Deterministic boundary tests for BorrowBlueToMidnightClamp

@@ -12,8 +12,8 @@ import {IBorrowMidnightToBlueCallback} from "@callbacks/interfaces/IBorrowMidnig
 import {ILendMidnightToVaultCallback} from "@callbacks/interfaces/ILendMidnightToVaultCallback.sol";
 import {ILendMidnightRenewalCallback} from "@callbacks/interfaces/ILendMidnightRenewalCallback.sol";
 import {Market, Offer, CollateralParams} from "@midnight/interfaces/IMidnight.sol";
-import {Id, MarketParams} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";

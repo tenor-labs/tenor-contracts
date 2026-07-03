@@ -3,8 +3,8 @@
 pragma solidity 0.8.34;
 
 import {IMidnight, Market} from "@midnight/interfaces/IMidnight.sol";
-import {IMorpho, MarketParams, Id} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {IMorpho, MarketParams, Id} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 import {IBorrowMidnightToBlueCallback} from "./interfaces/IBorrowMidnightToBlueCallback.sol";
 import {SafeTransferLib} from "@midnight/libraries/SafeTransferLib.sol";
 import {CALLBACK_SUCCESS} from "@midnight/libraries/ConstantsLib.sol";
