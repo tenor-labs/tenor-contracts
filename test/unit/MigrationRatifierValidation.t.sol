@@ -13,8 +13,8 @@ import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {WAD} from "@midnight/libraries/ConstantsLib.sol";
-import {Id, MarketParams} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 
 /// @dev A cadence whose period start is always one second in the future, so a Blue/Vault entry never has a valid
 ///      `renewalPeriodStart <= block.timestamp`.

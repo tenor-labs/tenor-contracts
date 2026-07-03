@@ -19,7 +19,7 @@ import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TakeAmountsLib} from "@midnight/periphery/TakeAmountsLib.sol";
 import {LIQUIDATION_CURSOR} from "../helpers/MaxLifLib.sol";
 import {ClampFuzzFixtures} from "../helpers/ClampFuzzFixtures.sol";
-import {IMorpho} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
+import {IMorpho} from "@morphoBlue/interfaces/IMorpho.sol";
 import {OfferRemainingHelper} from "../helpers/OfferRemainingHelper.sol";
 import {EcrecoverRatifier} from "@midnight/ratifiers/EcrecoverRatifier.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";

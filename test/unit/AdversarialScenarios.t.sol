@@ -12,8 +12,8 @@ import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {StaticRatePolicy} from "../../src/ratifiers/policies/StaticRatePolicy.sol";
 import {CallbackLib} from "../../src/libraries/CallbackLib.sol";
 import {MAX_FEE_RATE} from "../../src/ratifiers/BaseMigrationRatifier.sol";
-import {MarketParams, Id} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {MarketParams, Id} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 import {IBorrowMidnightToBlueCallback} from "@callbacks/interfaces/IBorrowMidnightToBlueCallback.sol";
 import {Oracle} from "../helpers/Oracle.sol";
 

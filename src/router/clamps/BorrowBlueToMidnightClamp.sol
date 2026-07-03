@@ -5,8 +5,8 @@ pragma solidity 0.8.34;
 import {ITakeClamp} from "../interfaces/ITakeClamp.sol";
 import {IMidnight, Offer} from "@midnight/interfaces/IMidnight.sol";
 import {TakeMathLib} from "../../libraries/TakeMathLib.sol";
-import {IMorpho, Id, MarketParams} from "../../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MorphoBalancesLib} from "../../../lib/morpho-blue/src/libraries/periphery/MorphoBalancesLib.sol";
+import {IMorpho, Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MorphoBalancesLib} from "@morphoBlue/libraries/periphery/MorphoBalancesLib.sol";
 
 /// @title BorrowBlueToMidnightClamp
 /// @notice Clamp that bounds takeUnits for Morpho Blue to Midnight borrow migrations (cadence-based, SELL offers).

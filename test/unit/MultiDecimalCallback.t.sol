@@ -28,15 +28,9 @@ import {TakeAmountsLib} from "@midnight/periphery/TakeAmountsLib.sol";
 import {LIQUIDATION_CURSOR} from "../helpers/MaxLifLib.sol";
 import {creditAfterSlashing} from "../helpers/CreditHelper.sol";
 import {Fixtures} from "../helpers/Fixtures.sol";
-import {
-    IMorpho,
-    MarketParams,
-    Position,
-    Id,
-    Market as BlueMarket
-} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
-import {IIrm} from "../../lib/morpho-blue/src/interfaces/IIrm.sol";
+import {IMorpho, MarketParams, Position, Id, Market as BlueMarket} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
+import {IIrm} from "@morphoBlue/interfaces/IIrm.sol";
 
 /* ═══════════════════════════════════════════════════════════════════════
    Independent Fee Math Helpers

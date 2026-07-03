@@ -9,15 +9,9 @@ import {IMidnight, Market, CollateralParams, Offer} from "@midnight/interfaces/I
 import {Signature, EIP712_DOMAIN_TYPEHASH} from "@midnight/ratifiers/interfaces/IEcrecoverRatifier.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {HashLib} from "@midnight/ratifiers/libraries/HashLib.sol";
-import {
-    IMorpho,
-    MarketParams,
-    Position,
-    Id,
-    Market as BlueMarket
-} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
-import {MorphoBalancesLib} from "../../lib/morpho-blue/src/libraries/periphery/MorphoBalancesLib.sol";
+import {IMorpho, MarketParams, Id, Market as BlueMarket} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
+import {MorphoBalancesLib} from "@morphoBlue/libraries/periphery/MorphoBalancesLib.sol";
 import {CallbackLib} from "../../src/libraries/CallbackLib.sol";
 import {MockERC20} from "../helpers/mocks/MockERC20.sol";
 import {Oracle} from "../helpers/Oracle.sol";
@@ -25,7 +19,7 @@ import {WAD, DEFAULT_TICK_SPACING} from "@midnight/libraries/ConstantsLib.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TickLib, MAX_TICK} from "@midnight/libraries/TickLib.sol";
 import {TakeAmountsLib} from "@midnight/periphery/TakeAmountsLib.sol";
-import {IIrm} from "../../lib/morpho-blue/src/interfaces/IIrm.sol";
+import {IIrm} from "@morphoBlue/interfaces/IIrm.sol";
 import {LIQUIDATION_CURSOR} from "../helpers/MaxLifLib.sol";
 import {EcrecoverRatifier} from "@midnight/ratifiers/EcrecoverRatifier.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
