@@ -266,8 +266,7 @@ abstract contract TenorRouter is ITenorRouter {
         if (takeUnits == 0) return (true, 0, 0, 0, marketId, "");
 
         address loanToken = action.offer.market.loanToken;
-        // Lender path with no takerCallback: Midnight resolves payer to msg.sender (this contract),
-        // so give it a temporary allowance for the in-flight take.
+        // Lender path with no takerCallback: Midnight resolves payer to msg.sender (this contract).
         bool routerIsPayer = d.takerCallback == address(0) && !action.offer.buy;
         if (routerIsPayer) {
             SafeERC20.forceApprove(IERC20(loanToken), address(_MORPHO_MIDNIGHT), type(uint256).max);
@@ -284,10 +283,8 @@ abstract contract TenorRouter is ITenorRouter {
         ) returns (
             uint256 r0, uint256 r1
         ) {
-            if (routerIsPayer) SafeERC20.forceApprove(IERC20(loanToken), address(_MORPHO_MIDNIGHT), 0);
             return (true, r0, r1, takeUnits, marketId, "");
         } catch (bytes memory reason) {
-            if (routerIsPayer) SafeERC20.forceApprove(IERC20(loanToken), address(_MORPHO_MIDNIGHT), 0);
             return (false, 0, 0, 0, marketId, reason);
         }
     }
