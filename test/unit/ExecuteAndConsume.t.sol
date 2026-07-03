@@ -274,6 +274,7 @@ contract ExecuteAndConsumeTest is Fixtures {
             minFill: minFill,
             minPrice: 0,
             maxPrice: type(uint256).max,
+            maxContinuousFee: type(uint256).max,
             reduceOnly: false
         });
     }

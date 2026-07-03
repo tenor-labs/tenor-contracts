@@ -215,6 +215,7 @@ contract MixedExecutionDCOFIntegrationTest is MigrationRatifierTestBase {
             minFill: 0,
             minPrice: 0,
             maxPrice: type(uint256).max,
+            maxContinuousFee: type(uint256).max,
             reduceOnly: false
         });
     }
