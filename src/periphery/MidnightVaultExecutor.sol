@@ -14,8 +14,8 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// @title MidnightVaultExecutor
 /// @notice Facilitates deposit, withdraw and liquidation of ERC-4626 vault shares used as Midnight collateral.
 /// @dev Supports multiple vaults: the vault is derived from `market.collateralParams[collateralIndex]`.
-/// @dev The executor is pass-through, not custody.
-/// @dev Funds must be supplied within the same call; a balance parked across calls is neither usable nor recoverable.
+/// @dev Assets are pulled via allowances and fully used within the same call; tokens transferred directly to the
+/// executor are neither usable nor recoverable.
 /// @dev VaultV2 deposits can revert if a liquidity-adapter cap of the vault is reached, blocking otherwise valid
 /// deposit-and-add-collateral flows.
 /// @dev Uses the Midnight contract as authorization authority (caller must be `onBehalf` or authorized by it on
@@ -29,6 +29,13 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// - It must be resistant to atomic share-price manipulation (donation/sandwich): no per-share-price/slippage bound is
 /// enforced by the executor, so deposit/mint/redeem settle at whatever rate the vault reports at execution time.
 /// - It must not re-enter Midnight nor this executor on `deposit`, `mint`, `previewMint` nor `redeem`.
+///
+/// LIQUIDATION SELF-FUNDING LIMITATIONS
+/// @dev `onLiquidate` funds the repayment strictly from redeeming the seized shares: prefunding does not help. Any
+/// skew between the oracle price and the vault's redemption rate, and any rounding loss, are deducted from the
+/// liquidator's incentive bonus (the seized value in excess of `repaidUnits`). When the loss exceeds the bonus
+/// (i.e. `lltv == WAD`, `liquidationCursor == 0`, the first seconds of the post-maturity incentive ramp, or
+/// dust-sized `repaidUnits`), the liquidation reverts with `RepayExceedsRedeemed`.
 contract MidnightVaultExecutor is IMidnightVaultExecutor, IRepayCallback, ILiquidateCallback {
     using SafeERC20 for IERC20;
 
@@ -106,6 +113,7 @@ contract MidnightVaultExecutor is IMidnightVaultExecutor, IRepayCallback, ILiqui
 
     /* LIQUIDATOR FUNCTIONS */
 
+    /// @dev Funded solely by redeeming the seized shares.
     function onLiquidate(
         address liquidator,
         bytes32,
