@@ -72,7 +72,7 @@ Direct deposit, withdraw, repay, and liquidation helper outside the offer flow. 
 
 All four paths share the same authorization model: the caller must be `onBehalf` or authorized by it on Midnight (`isAuthorized`). The vault is derived from `market.collateralParams[collateralIndex]`, and the executor checks the vault's `asset()` matches the market's loan token on every path.
 
-The executor does not take custody. It holds shares and assets only for the duration of a call; repay and liquidation are funded strictly from the assets redeemed in that same call, so a balance parked across calls is neither usable nor recoverable. No per-share-price / slippage bound is enforced — deposit, mint, and redeem settle at whatever rate the vault reports at execution time. See the contract's `VAULT SAFETY REQUIREMENTS` NatSpec for the full list of vault assumptions this relies on.
+The executor does not take custody. It holds shares and assets only for the duration of a call; repay and liquidation are funded strictly from the assets redeemed in that same call, so a balance parked across calls is neither usable nor recoverable. No per-share-price / slippage bound is enforced — deposit, mint, and redeem settle at whatever rate the vault reports at execution time. See the contract's `VAULT SAFETY REQUIREMENTS` NatSpec for the full list of vault assumptions this relies on, and its `LIQUIDATION SELF-FUNDING LIMITATIONS` NatSpec for the cases where a liquidation through the executor reverts.
 
 ## Why the executor exists
 
