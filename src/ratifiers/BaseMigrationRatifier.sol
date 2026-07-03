@@ -347,7 +347,8 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     /// - Exits (Midnight to Blue or vault): `sourceMaturity - block.timestamp`. The remaining fixed term given up
     ///   (zero at or after maturity).
     /// @dev When source funds become withdrawable before sourceMaturity (e.g. early repayments), a renewal relocks them
-    /// until targetMaturity but only pays from sourceMaturity, leaving the lender's realized rate short of the ratified floor.
+    /// until targetMaturity but only pays from sourceMaturity, leaving the lender's realized rate short of the ratified
+    /// floor.
     function _computeDuration(address callback, uint256 sourceMaturity, uint256 targetMaturity)
         internal
         view

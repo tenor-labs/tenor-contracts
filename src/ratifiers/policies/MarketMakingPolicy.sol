@@ -14,8 +14,7 @@ import {IMarketMakingPolicy} from "../interfaces/IMarketMakingPolicy.sol";
 /// getRate returns the side selected by userIsBuyer (true when buying credit on Midnight); the rate gap is the spread.
 /// @dev Rates are capped at type(uint112).max: within 192 seconds of maturity, even the max rate gives
 /// price = WAD^2 / (WAD + rate * ttm) >= 1 after flooring, so a quote of exactly 0 is not expressible there.
-/// @dev The policy does not verify which callback is in use; it trusts the userIsBuyer
-/// flag and the maturities provided by the ratifier.
+/// @dev The policy does not verify which callback is in use; it trusts the ratifier's userIsBuyer flag and maturities.
 /// @dev getRate reverts on Midnight to Midnight renewals (both source and target maturities nonzero); not supported.
 /// @dev Lend-only: only lend entry and exit flows are supported (vault -> Midnight and Midnight -> vault).
 /// @dev `setCurve`/`clearCurve` use the Midnight contract as authorization authority: the caller must be `onBehalf`

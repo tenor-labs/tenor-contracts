@@ -132,11 +132,8 @@ contract MidnightVaultExecutor is IMidnightVaultExecutor, IRepayCallback, ILiqui
 
     /* INTERNAL */
 
-    /// @dev Shared by `withdrawCollateralAndRedeem` and `onRepay`: derives the vault from the market's collateral
-    /// and checks its asset matches the loan token, withdraws `shares` of vault-share collateral from `onBehalf` on
-    /// Midnight, and redeems them to `redeemReceiver`.
-    /// @dev `withdrawCollateralAndRedeem` redeems to the external receiver;
-    /// `onRepay` redeems to the executor, which then funds the repay.
+    /// @dev Derives the vault from the market's collateral and checks its asset matches the loan token, withdraws
+    /// `shares` of vault-share collateral from `onBehalf` on Midnight, and redeems them to `redeemReceiver`.
     function _withdrawAndRedeem(
         Market memory market,
         uint256 collateralIndex,

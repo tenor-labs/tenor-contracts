@@ -10,11 +10,9 @@ import {TakeMathLib} from "./TakeMathLib.sol";
 
 /// @title RouterLib
 /// @notice Fill-sizing helpers shared by TenorRouter and ICallbackFeeAdjuster implementations.
-/// @dev budgetToUnits inverts a remaining fill budget in a given dimension to the maximum market units; it is used
-/// by the router's no-adjuster path and by CallbackFeeAdjuster for dimensions the fee does not land on.
+/// @dev budgetToUnits inverts a remaining fill budget in a given dimension to the maximum market units.
 /// @dev netBuyerPrice and netSellerPrice compose Midnight's forward price with Tenor's effective price to get the
-/// per-unit price the taker actually pays (buyer) or receives (seller) after both onchain fees; they are used by
-/// CallbackFeeAdjuster to invert remainingBudget to maxUnits conservatively under the interest fee formula.
+/// per-unit price the taker actually pays (buyer) or receives (seller) after both onchain fees.
 library RouterLib {
     uint8 internal constant FILL_BUYER_ASSETS = 0;
     uint8 internal constant FILL_SELLER_ASSETS = 1;

@@ -19,10 +19,9 @@ import {IdLib} from "@midnight/libraries/IdLib.sol";
 /// @dev Repays the source Midnight market debt with the sale proceeds (minus fee) and transfers collateral to the
 /// target Midnight market pro-rata to the repaid debt, all of it on the final fill.
 /// @dev The borrower must authorize this contract on Morpho Midnight (debt repayment and collateral transfer).
-/// @dev The source and target markets must list the same collateral token set. Only the loan token is checked
-/// onchain; collateral tokens missing from the target market are skipped and stay on the source market.
-/// @dev With multiple source collaterals, only those also listed on the target migrate, which can adversely affect
-/// the source or target LTV. Use a single collateral, or make the target collateral set a superset of the source's.
+/// @dev The source and target markets must list the same collateral token set: only the loan token is checked
+/// onchain, and collateral missing from the target is skipped and stays on the source, which can adversely affect
+/// either LTV. Use a single collateral, or make the target collateral set a superset of the source's.
 /// @dev Pre-existing positions on the target market are netted: the borrower can end up with collateral but no debt.
 /// @dev On small partial fills, the pro-rata collateral transfer can round to zero even though debt is
 /// migrated, temporarily increasing the target position's LTV until the position is fully migrated.

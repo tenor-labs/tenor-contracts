@@ -119,7 +119,7 @@ abstract contract TenorRouter is ITenorRouter {
     /// disjoint from its maker-side fills that Midnight already counts under `consumed[initiator][group]`: resting
     /// offers filled during the batch, e.g. via reentrancy.
     /// @dev To reconcile the initiator's consumption, add `rawTotals` to `consumed[initiator][group]`: the two never
-    /// overlap, so the sum does not double-count. Reconcile against `rawTotals`, not the fee-adjusted `totals`.
+    /// overlap, so the sum does not double-count.
     function _execute(ExecuteParams calldata params, Action[] calldata actions, uint256 maxFill, uint256 minFill)
         internal
         returns (uint256[3] memory totals, uint256[3] memory rawTotals)

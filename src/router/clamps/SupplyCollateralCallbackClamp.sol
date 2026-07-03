@@ -24,12 +24,12 @@ import {WAD, MAX_COLLATERALS_PER_BORROWER} from "@midnight/libraries/ConstantsLi
 /// @dev The seller's existing collateral and debt are read onchain and factored into the health and
 /// maxBorrowCapacityUsage headroom.
 /// @dev The taker (buyer/lender) is responsible for constraining on their own health and debt.
-/// @dev The debt-limit bound (health and maxBorrowCapacityUsage) is a linearized estimate, self-consistency-checked at
-/// the post-take rounding; on overshoot it falls back to the monotone-safe existing-collateral headroom. Never
-/// over-sizes.
-/// @dev Limitation: the headroom fallback can under-quote substantially: it ignores the collateral this fill would
-/// supply, down to 0 when existing collateral does not already cover the debt (e.g. a fresh seller). A tighter
-/// maxBorrowCapacityUsage makes it more likely.
+/// @dev The debt-limit bound (health and maxBorrowCapacityUsage) is a linearized estimate, self-consistency-checked
+/// at the post-take rounding; on overshoot it falls back to the monotone-safe existing-collateral headroom, never
+/// over-sizing.
+/// @dev That fallback can under-quote substantially: it ignores the collateral this fill would supply, down to 0
+/// when existing collateral does not already cover the debt (e.g. a fresh seller); a tighter maxBorrowCapacityUsage
+/// shrinks the existing-collateral limit, making under-quotes more likely.
 contract SupplyCollateralCallbackClamp is ITakeClamp {
     using UtilsLib for uint256;
 

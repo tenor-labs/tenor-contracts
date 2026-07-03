@@ -19,7 +19,7 @@ import {IMigrationRatifier} from "./interfaces/IMigrationRatifier.sol";
 /// or authorized by it on Midnight.
 contract MigrationRatifier is BaseMigrationRatifier {
     /// @inheritdoc IMigrationRatifier
-    /// @dev Top 6 bytes = "tenor" (0x74656e6f72) domain prefix + schema version byte 0xE0; the 0xE0–0xEF
+    /// @dev Top 6 bytes = "tenor" (0x74656e6f72) domain prefix + schema version byte 0xE0; the 0xE0-0xEF
     /// version range is reserved for migration groups. The low 208 bits stay free to vary per offer.
     bytes32 public constant MIGRATION_GROUP_HEADER = hex"74656e6f72e0";
 
@@ -104,7 +104,7 @@ contract MigrationRatifier is BaseMigrationRatifier {
 
     /// @notice Midnight ratification entry point; reverts on any policy breach, returns CALLBACK_SUCCESS otherwise.
     /// @dev `ratifierData` must be `abi.encode(bytes32 sourceTenorMarketId, bytes32 targetTenorMarketId)`; `_ratify`
-    /// validates `offer.maker`'s params for that tuple. Midnight only calls this on ratifiers the maker authorized.
+    /// validates `offer.maker`'s params for that tuple.
     /// @dev Make-on-behalf settlement guards (the user is the offer maker): proceeds must flow to `offer.callback` on
     /// sells, and there is no taker-funded receiver on buys.
     /// @dev The offer is confined to the reserved migration-group namespace (see `MIGRATION_GROUP_HEADER`).

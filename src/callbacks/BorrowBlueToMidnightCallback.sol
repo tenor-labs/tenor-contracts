@@ -24,7 +24,7 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// (collateral supply).
 /// @dev Pre-existing Midnight positions are netted: the borrower can end up with collateral but no debt on Midnight.
 /// @dev Partial fills migrate collateral pro-rata to the repaid debt, rounded down, so a small fill can migrate
-/// less collateral than the repaid debt implies — down to zero on tiny fills — temporarily increasing the target
+/// less collateral than the repaid debt implies (down to zero on tiny fills), temporarily increasing the target
 /// position's LTV until the final fill migrates all remaining collateral.
 contract BorrowBlueToMidnightCallback is IBorrowBlueToMidnightCallback {
     using UtilsLib for uint256;
