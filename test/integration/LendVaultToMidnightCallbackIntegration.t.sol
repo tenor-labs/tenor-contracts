@@ -184,7 +184,7 @@ contract LendVaultToMidnightCallbackIntegrationTest is Test {
         vm.prank(BORROWER);
         midnight.supplyCollateral(market, 0, COLLATERAL_AMOUNT, BORROWER);
 
-        // 4. Borrower takes the offer (sells bonds to lender)
+        // 4. Borrower takes the offer (sells units to lender)
         // This triggers the callback which withdraws from vault
         bytes32 root = HashLib.hashOffer(buyOffer);
         bytes32[] memory proof = new bytes32[](0);
@@ -206,7 +206,7 @@ contract LendVaultToMidnightCallbackIntegrationTest is Test {
         uint256 lenderSharesAfter = vault.balanceOf(LENDER);
         assertLt(lenderSharesAfter, lenderSharesBefore, "Vault shares should decrease");
 
-        // Lender should have market shares (received bonds)
+        // Lender should have market shares (received units)
         uint256 lenderMarketShares = creditAfterSlashing(midnight, marketId, LENDER);
         assertGt(lenderMarketShares, 0, "Lender should have market shares");
 

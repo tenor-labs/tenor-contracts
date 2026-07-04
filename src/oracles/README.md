@@ -67,7 +67,7 @@ The deviation threshold should be:
 
 2. **Asymmetric formula.** The deviation is measured as a fraction of `primaryPrice`, not `validationPrice`. When primary is the high side, this accepts an effective overshoot of `d / (1 - d)` against validation rather than `d`.
 
-3. **Triggering the deviation check blocks `price()`, which blocks liquidations.** If the threshold is set too narrow, transient honest deviation between the two oracles will halt liquidations of unhealthy positions and let bad debt accumulate via interest accrual. A threshold that is too narrow is just as dangerous as one that is too wide — it trades direct manipulation risk for liquidation-availability risk. Choose the threshold to comfortably exceed normal market spread between the two feeds while staying under `(1 - LLTV * maxLif)`.
+3. **Triggering the deviation check blocks `price()`, which blocks liquidations.** If the threshold is set too narrow, transient honest deviation between the two oracles will halt liquidations of unhealthy positions and let bad debt accumulate via interest accrual. A threshold that is too narrow is just as dangerous as one that is too wide — it trades direct manipulation risk for liquidation-availability risk. Choose the threshold to comfortably exceed normal market spread between the two feeds while staying under `(1 - LLTV * maxLif)`. A reverting `price()` also blocks any operation Midnight routes through the oracle: liquidations, `withdrawCollateral`/`take` for accounts with debt, and the initial `supplyCollateral` that activates a collateral on markets using this oracle.
 
 ### Validation Oracle Revert Behavior
 

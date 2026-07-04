@@ -11,7 +11,7 @@ interface IMidnightAdapter is IFlashLoanCallback {
     function MORPHO_MIDNIGHT() external view returns (IMidnight);
 
     /// @notice Repays debt on Morpho Midnight on behalf of the initiator.
-    /// @dev Strictly uses tokens already on the adapter (does not pull from initiator).
+    /// @dev Strictly uses tokens already on the adapter; does not pull from initiator.
     /// @dev `assets` and `debt` are mutually exclusive: passing both non-zero reverts `InconsistentInput`. If the
     ///      resolved repay amount is zero (e.g. a max sentinel on a zero-balance adapter or a zero-debt position),
     ///      the call returns silently rather than reverting, so a best-effort residual or sweep repay can sit
@@ -32,7 +32,7 @@ interface IMidnightAdapter is IFlashLoanCallback {
     ) external;
 
     /// @notice Supplies collateral to Morpho Midnight on behalf of the initiator.
-    /// @dev Strictly uses tokens already on the adapter (does not pull from initiator).
+    /// @dev Strictly uses tokens already on the adapter; does not pull from initiator.
     /// @param market The market to supply collateral to.
     /// @param collateralIndex The index of the collateral in `market.collateralParams`.
     /// @param assets The amount of collateral to supply. Pass `type(uint256).max` to use the adapter's full balance.
@@ -63,7 +63,7 @@ interface IMidnightAdapter is IFlashLoanCallback {
     /// @dev Used for atomic cancel operations (cancel + withdraw, cancel + disable auto-renewal). Passing
     ///      `type(uint128).max` cancels all offers in the group.
     /// @param group The offer group to set consumed amount for.
-    /// @param amount The new consumed amount (must be >= current consumed amount).
+    /// @param amount The new consumed amount; must be >= current consumed amount.
     function midnightSetConsumed(bytes32 group, uint128 amount) external;
 
     /// @notice Triggers a flash loan on Morpho Midnight.

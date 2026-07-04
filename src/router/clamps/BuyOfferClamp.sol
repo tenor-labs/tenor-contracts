@@ -12,7 +12,7 @@ import {WAD} from "@midnight/libraries/ConstantsLib.sol";
 /// @notice Clamp that bounds takeUnits for BUY offers (buy == true, the maker is the buyer/lender).
 /// @dev Bounds units by the buyer's loan token balance and allowance.
 /// @dev Assumes offer.callback == address(0) (no callback); Morpho Midnight pulls the buyer's loan tokens directly.
-/// @dev When the offer is reduceOnly, units are also capped to the buyer's current debt (prevents crossing to credit).
+/// @dev When the offer is reduceOnly, units are also capped to the buyer's current debt to prevent crossing to credit.
 /// @dev The taker (seller/borrower) is responsible for constraining on their own health and debt.
 /// @dev Offer consumption is checked structurally by TenorRouter.
 contract BuyOfferClamp is ITakeClamp {
@@ -22,7 +22,7 @@ contract BuyOfferClamp is ITakeClamp {
     /// @notice Data decoded from clampData.
     struct BuyOfferClampData {
         bytes32 marketId; // Pre-computed market ID
-        address taker; // The taker address (unused by this clamp)
+        address taker; // The taker address; unused by this clamp
     }
 
     constructor(IMidnight morphoMidnight) {
@@ -47,7 +47,7 @@ contract BuyOfferClamp is ITakeClamp {
         if (buyerPrice > 0) {
             maxUnits = TakeMathLib.mulDivDownInverse(available, WAD, buyerPrice);
         } else {
-            maxUnits = type(uint128).max; // tick == 0 means a free bond.
+            maxUnits = type(uint128).max; // tick == 0 means free units.
         }
 
         maxUnits = TakeMathLib.capReduceOnly(MORPHO_MIDNIGHT, data.marketId, offer, maxUnits);

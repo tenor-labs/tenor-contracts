@@ -10,11 +10,12 @@ import {ISellCallback} from "@midnight/interfaces/ICallbacks.sol";
 /// collateral, where `amountFromSeller = ceil(sellerAssets * additionalDepositPercent / WAD)`.
 interface IMidnightSupplyVaultSharesCallback is ISellCallback {
     /// @notice Data encoded in the offer's callbackData.
-    /// @param vault The ERC-4626 vault to deposit into (must be listed in market.collateralParams).
+    /// @param vault The ERC-4626 vault to deposit into; must be listed in market.collateralParams.
     /// @param collateralIndex The index of the vault in the market's collateralParams array.
     /// @param additionalDepositPercent The extra share of sellerAssets the seller must provide, in WAD (e.g. 0.1e18 =
-    /// 10% extra). Must be at least WAD^2 / (price * LLTV) - WAD, where price = tickToPrice(offer.tick), to keep the
-    /// position healthy; the callback does not enforce this minimum.
+    /// 10% extra). Must be at least WAD^3 / (price * LLTV) - WAD, where price = tickToPrice(offer.tick), to keep the
+    /// position healthy (assuming the vault-share oracle prices shares at their loan-token redemption value); the
+    /// callback does not enforce this minimum.
     struct CallbackData {
         address vault;
         uint256 collateralIndex;

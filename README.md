@@ -19,7 +19,7 @@ The codebase is organized into **standalone contracts** that interact directly w
                        └──────────────┬──────────────┘
                                       │ batches midnight.take()
                                       │ (initiator = taker)
-               isRatified(offer)      ▼   invokes offer.callback
+          isRatified(offer, …, taker)  ▼   invokes offer.callback
   ┌──────────────────┐   ┌─────────────────────────┐   ┌─────────────────────────────────────┐
   │ MigrationRatifier│◄──│     Morpho Midnight     │──►│              Callbacks              │
   │ validates user   │   └─────────────────────────┘   │  Borrow  {BlueToMidnight,           │
@@ -138,7 +138,7 @@ The **Ratifier owner** configures fee rates via `setFeeConfig(callback, marketId
 
 ### Migration Ratifier Validations
 
-When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.maker][offer.ratifier]` and calls the ratifier's `isRatified(offer, ratifierData)`, which validates:
+When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.maker][offer.ratifier]` and calls the ratifier's `isRatified(offer, ratifierData, taker)` (forwarding the `taker` for counterparty-aware rate pricing), which validates:
 
 1. **Params validity** — `interestRatePolicy != address(0)`, `minDuration > 0`, `maxDuration >= minDuration`
 2. **Callback data consistency** — Source/target market IDs in callback data match the take's source/target market IDs
@@ -160,7 +160,7 @@ When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.
 
 ┌──────────────┐  take(userOffer, …)  ┌──────────────┐  checks isAuthorized[maker][ratifier]
 │ Counterparty │─────────────────────→│ Morpho       │──┐
-└──────────────┘                      │ Midnight     │  │ isRatified(offer, ratifierData)
+└──────────────┘                      │ Midnight     │  │ isRatified(offer, ratifierData, taker)
                                       └───────┬──────┘  ▼
                                               │     ┌──────────┐  validates fees, window,
                                               │     │ Ratifier │  maturity, rate
@@ -210,7 +210,7 @@ Stateless, view-only contracts that cap `takeUnits` before dispatch. There is on
 
 `TenorAdapter` extends Bundler3's adapter pattern to expose all Tenor operations as multicallable actions. Composed of:
 
-- **`MidnightAdapterBase`** - Raw Morpho Midnight operations (take, repay, supply/withdraw collateral, flash loans)
+- **`MidnightAdapterBase`** - Raw Morpho Midnight operations (repay, supply/withdraw collateral, flash loans)
 - **`MigrationRatifierAdapterBase`** - Ratifier param operations (`migrationSetParams`, `migrationClearParams`). Pins the ratifier as an immutable at deploy time.
 - **`TenorRouterAdapterBase`** - Batch fill execution via TenorRouter, with sentinel value resolution for onchain balance lookups
 

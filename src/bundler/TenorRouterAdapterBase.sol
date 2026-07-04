@@ -11,16 +11,16 @@ import {ITenorRouter} from "../router/interfaces/ITenorRouter.sol";
 import {ITenorRouterAdapter} from "./interfaces/ITenorRouterAdapter.sol";
 
 /// @title TenorRouterAdapterBase
-/// @notice Bundler3 adapter for TenorRouter batch execution. Overrides `_initiator` to return
-///         `Bundler3.initiator()` and adds sentinel resolution + `executeAndConsume`.
+/// @notice Bundler3 adapter for TenorRouter batch execution.
+/// @dev `_initiator` returns `Bundler3.initiator()`: the bundle initiator is the Midnight taker.
 abstract contract TenorRouterAdapterBase is TenorRouter, CoreAdapter, ITenorRouterAdapter {
     function _initiator() internal view override returns (address) {
         return initiator();
     }
 
     /// @inheritdoc ITenorRouter
-    /// @dev Adapter override: callable only by Bundler3, and resolves `type(uint256).max`
-    ///      `maxFill`/`minFill` sentinels against onchain state before executing.
+    /// @dev Adapter override: callable only by Bundler3, and resolves `type(uint256).max` `maxFill`/`minFill`
+    /// sentinels against onchain state before executing.
     function execute(ExecuteParams calldata params, Action[] calldata actions)
         external
         override(TenorRouter, ITenorRouter)

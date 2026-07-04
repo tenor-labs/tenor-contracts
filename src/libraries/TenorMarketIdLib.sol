@@ -26,7 +26,7 @@ library TenorMarketIdLib {
         );
     }
 
-    /// @dev Encodes a vault address as a Tenor market ID (vault address in the high 20 bytes).
+    /// @dev Encodes a vault address as a Tenor market ID, placing it in the high 20 bytes.
     function vaultToTenorMarketId(address vault) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(vault)) << 96);
     }

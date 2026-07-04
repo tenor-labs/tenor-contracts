@@ -515,7 +515,7 @@ contract MigrationRatifierTest is Test {
 
         uint256 policyRate = 0.05e18 / uint256(365 days);
         uint256 price = PriceLib.computePrice(true, policyRate, duration);
-        assertGt(price, tickPrice, "setup: bond price must exceed raw tick price");
+        assertGt(price, tickPrice, "setup: unit price must exceed raw tick price");
 
         // A large settlement fee on the mock — it must be ignored on the maker path.
         midnight.setSettlementFeeReturn((price - tickPrice) + 1e18);
