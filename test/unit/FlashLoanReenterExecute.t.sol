@@ -153,9 +153,29 @@ contract FlashLoanReenterExecuteTest is Fixtures {
         });
     }
 
+    /// @dev Builds a `midnightFlashLoan(loanToken, FLASH_AMOUNT, reenterData)` bundle whose
+    ///      `onFlashLoan` reenters Bundler3 with `innerCalls` (callbackHash pins the reenter data).
+    function _flashLoanCall(Call[] memory innerCalls) private view returns (Call[] memory calls) {
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(loanToken);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = FLASH_AMOUNT;
+
+        bytes memory reenterData = abi.encode(innerCalls);
+
+        calls = new Call[](1);
+        calls[0] = Call({
+            to: address(adapter),
+            data: abi.encodeCall(adapter.midnightFlashLoan, (tokens, amounts, reenterData)),
+            value: 0,
+            skipRevert: false,
+            callbackHash: keccak256(reenterData)
+        });
+    }
+
     /// @dev Builds the outer bundle: `midnightFlashLoan(loanToken, FLASH_AMOUNT, reenterData)` where
     ///      the reentered bundle runs a same-token `routerIsPayer` take through `execute`.
-    function _flashLoanReenterBundle() internal view returns (Call[] memory calls) {
+    function _flashLoanReenterBundle() internal view returns (Call[] memory) {
         Action[] memory actions = new Action[](1);
         actions[0] = _routerIsPayerTakeAction(TAKE_UNITS);
 
@@ -173,21 +193,7 @@ contract FlashLoanReenterExecuteTest is Fixtures {
         Call[] memory innerCalls = new Call[](1);
         innerCalls[0] = _call(address(adapter), abi.encodeCall(adapter.execute, (params, actions)));
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(loanToken);
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = FLASH_AMOUNT;
-
-        bytes memory reenterData = abi.encode(innerCalls);
-
-        calls = new Call[](1);
-        calls[0] = Call({
-            to: address(adapter),
-            data: abi.encodeCall(adapter.midnightFlashLoan, (tokens, amounts, reenterData)),
-            value: 0,
-            skipRevert: false,
-            callbackHash: keccak256(reenterData)
-        });
+        return _flashLoanCall(innerCalls);
     }
 
     /// @notice TRST-M-05: the nested take must not reset the allowance the outer flash loan relies
@@ -224,23 +230,8 @@ contract FlashLoanReenterExecuteTest is Fixtures {
         Call[] memory innerCalls = new Call[](1);
         innerCalls[0] = _call(address(adapter), abi.encodeCall(adapter.midnightSupplyCollateral, (market, 0, 0)));
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(loanToken);
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = FLASH_AMOUNT;
-
-        bytes memory reenterData = abi.encode(innerCalls);
-        Call[] memory calls = new Call[](1);
-        calls[0] = Call({
-            to: address(adapter),
-            data: abi.encodeCall(adapter.midnightFlashLoan, (tokens, amounts, reenterData)),
-            value: 0,
-            skipRevert: false,
-            callbackHash: keccak256(reenterData)
-        });
-
         vm.prank(taker);
         vm.expectRevert(ErrorsLib.ZeroAmount.selector);
-        bundler3.multicall(calls);
+        bundler3.multicall(_flashLoanCall(innerCalls));
     }
 }

@@ -18,7 +18,7 @@ contract VaultV2AllowlistGateFactoryTest is Test {
     function _predictGateAddress(address gateOwner, bytes32 salt) internal view returns (address) {
         bytes32 initCodeHash =
             keccak256(abi.encodePacked(type(VaultV2AllowlistGate).creationCode, abi.encode(gateOwner)));
-        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(factory), salt, initCodeHash)))));
+        return vm.computeCreate2Address(salt, initCodeHash, address(factory));
     }
 
     function test_deploy_succeeds() public {
@@ -49,7 +49,7 @@ contract VaultV2AllowlistGateFactoryTest is Test {
     function test_deploy_revertsOnDuplicateOwnerAndSalt() public {
         bytes32 salt = keccak256("duplicate");
         factory.deployVaultV2AllowlistGate(owner, salt);
-        vm.expectRevert();
+        vm.expectRevert(new bytes(0));
         factory.deployVaultV2AllowlistGate(owner, salt);
     }
 

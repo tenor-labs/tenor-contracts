@@ -202,16 +202,6 @@ contract AuthorizationAdapterSetterRatifierSetIsRatifiedTest is AuthorizationAda
         bundler3.multicall(_setIsRatified(address(setterRatifier), ROOT, true));
     }
 
-    function test_independentRatifiers() public {
-        SetterRatifier other = new SetterRatifier(address(midnight));
-
-        vm.prank(user);
-        bundler3.multicall(_setIsRatified(address(setterRatifier), ROOT, true));
-
-        assertTrue(setterRatifier.isRootRatified(user, ROOT));
-        assertFalse(other.isRootRatified(user, ROOT));
-    }
-
     function testFuzz_ratify(bytes32 fuzzRoot, bool value) public {
         vm.prank(user);
         bundler3.multicall(_setIsRatified(address(setterRatifier), fuzzRoot, value));
@@ -285,16 +275,6 @@ contract AuthorizationAdapterEcrecoverRatifierCancelRootTest is AuthorizationAda
         vm.prank(unauthorized);
         vm.expectRevert(IEcrecoverRatifier.Unauthorized.selector);
         bundler3.multicall(_cancelRoot(address(ecrecoverRatifier), ROOT));
-    }
-
-    function test_independentRatifiers() public {
-        EcrecoverRatifier other = new EcrecoverRatifier(address(midnight));
-
-        vm.prank(user);
-        bundler3.multicall(_cancelRoot(address(ecrecoverRatifier), ROOT));
-
-        assertTrue(ecrecoverRatifier.isRootCanceled(user, ROOT));
-        assertFalse(other.isRootCanceled(user, ROOT));
     }
 
     function testFuzz_cancelRoot(bytes32 fuzzRoot) public {

@@ -41,15 +41,56 @@ contract TenorAdapterTestBase is Fixtures {
         midnight = new Midnight();
         enableDefaultLltvs(midnight);
         bundler3 = deployBundler3();
-        adapter = new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+        adapter = _deployAdapter();
 
         vm.prank(user);
         midnight.setIsAuthorized(address(adapter), true, user);
     }
 
+    function _deployAdapter() internal virtual returns (TenorAdapter) {
+        return new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+    }
+
     function _makeCall(bytes memory data) internal view returns (Call[] memory calls) {
         calls = new Call[](1);
         calls[0] = Call({to: address(adapter), data: data, value: 0, skipRevert: false, callbackHash: bytes32(0)});
+    }
+}
+
+abstract contract TenorAdapterMarketTestBase is TenorAdapterTestBase {
+    MockERC20 internal loanToken;
+    MockERC20 internal collateralToken;
+    Oracle internal oracle;
+    Market internal market;
+    bytes32 internal marketId;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        loanToken = new MockERC20("Loan", "LOAN", 18);
+        collateralToken = new MockERC20("Collateral", "COL", 18);
+        oracle = new Oracle();
+        oracle.setPrice(10e36);
+
+        CollateralParams[] memory collaterals = new CollateralParams[](1);
+        collaterals[0] = CollateralParams({
+            token: address(collateralToken),
+            lltv: 0.945e18,
+            liquidationCursor: LIQUIDATION_CURSOR,
+            oracle: address(oracle)
+        });
+
+        market = Market({
+            chainId: block.chainid,
+            midnight: address(midnight),
+            loanToken: address(loanToken),
+            collateralParams: collaterals,
+            maturity: block.timestamp + 7 days,
+            rcfThreshold: 0,
+            enterGate: address(0),
+            liquidatorGate: address(0)
+        });
+        marketId = IdLib.toId(market);
     }
 }
 
@@ -136,43 +177,8 @@ contract TenorAdapterSetConsumedTest is TenorAdapterTestBase {
 /// @dev Regression tests for audit M-04: `midnightSupplyCollateral` must pin `onBehalf` to
 ///      `initiator()` so an attacker cannot activate bitmap slots on a victim's market via
 ///      the adapter authorization.
-contract TenorAdapterSupplyCollateralTest is TenorAdapterTestBase {
-    MockERC20 internal loanToken;
-    MockERC20 internal collateralToken;
-    Oracle internal oracle;
-    Market internal market;
-    bytes32 internal marketId;
-
+contract TenorAdapterSupplyCollateralTest is TenorAdapterMarketTestBase {
     uint256 internal constant SUPPLY = 1e18;
-
-    function setUp() public override {
-        super.setUp();
-
-        loanToken = new MockERC20("Loan", "LOAN", 18);
-        collateralToken = new MockERC20("Collateral", "COL", 18);
-        oracle = new Oracle();
-        oracle.setPrice(10e36);
-
-        CollateralParams[] memory collaterals = new CollateralParams[](1);
-        collaterals[0] = CollateralParams({
-            token: address(collateralToken),
-            lltv: 0.945e18,
-            liquidationCursor: LIQUIDATION_CURSOR,
-            oracle: address(oracle)
-        });
-
-        market = Market({
-            chainId: block.chainid,
-            midnight: address(midnight),
-            loanToken: address(loanToken),
-            collateralParams: collaterals,
-            maturity: block.timestamp + 7 days,
-            rcfThreshold: 0,
-            enterGate: address(0),
-            liquidatorGate: address(0)
-        });
-        marketId = IdLib.toId(market);
-    }
 
     function _supplyCall(uint256 assets) internal view returns (Call[] memory) {
         return _makeCall(abi.encodeCall(adapter.midnightSupplyCollateral, (market, 0, assets)));
@@ -234,41 +240,8 @@ contract TenorAdapterSupplyCollateralTest is TenorAdapterTestBase {
 
 /// @dev Regression tests: `midnightRepay` must pin `onBehalf` to `initiator()` so an attacker
 ///      cannot trigger a 1-wei repay on a victim's market via the adapter authorization.
-contract TenorAdapterRepayTest is TenorAdapterTestBase {
-    MockERC20 internal loanToken;
-    MockERC20 internal collateralToken;
-    Oracle internal oracle;
-    Market internal market;
-
+contract TenorAdapterRepayTest is TenorAdapterMarketTestBase {
     uint256 internal constant REPAY_UNITS = 1;
-
-    function setUp() public override {
-        super.setUp();
-
-        loanToken = new MockERC20("Loan", "LOAN", 18);
-        collateralToken = new MockERC20("Collateral", "COL", 18);
-        oracle = new Oracle();
-        oracle.setPrice(10e36);
-
-        CollateralParams[] memory collaterals = new CollateralParams[](1);
-        collaterals[0] = CollateralParams({
-            token: address(collateralToken),
-            lltv: 0.945e18,
-            liquidationCursor: LIQUIDATION_CURSOR,
-            oracle: address(oracle)
-        });
-
-        market = Market({
-            chainId: block.chainid,
-            midnight: address(midnight),
-            loanToken: address(loanToken),
-            collateralParams: collaterals,
-            maturity: block.timestamp + 7 days,
-            rcfThreshold: 0,
-            enterGate: address(0),
-            liquidatorGate: address(0)
-        });
-    }
 
     function _repayCall(uint256 assets, uint256 debt) internal view returns (Call[] memory) {
         return _makeCall(abi.encodeCall(adapter.midnightRepay, (market, assets, debt, address(0), "")));
@@ -313,13 +286,7 @@ contract TenorAdapterRepayTest is TenorAdapterTestBase {
 /// @dev `midnightWithdraw`/`midnightWithdrawCollateral` forward a caller-chosen `receiver`: an
 ///      external address delivers funds straight to the user, while `address(this)` keeps them on
 ///      the adapter for a following bundle action.
-contract TenorAdapterWithdrawTest is TenorAdapterTestBase {
-    MockERC20 internal loanToken;
-    MockERC20 internal collateralToken;
-    Oracle internal oracle;
-    Market internal market;
-    bytes32 internal marketId;
-
+contract TenorAdapterWithdrawTest is TenorAdapterMarketTestBase {
     address internal receiver;
 
     uint256 internal constant AMOUNT = 1e18;
@@ -327,31 +294,6 @@ contract TenorAdapterWithdrawTest is TenorAdapterTestBase {
     function setUp() public override {
         super.setUp();
         receiver = makeAddr("Receiver");
-
-        loanToken = new MockERC20("Loan", "LOAN", 18);
-        collateralToken = new MockERC20("Collateral", "COL", 18);
-        oracle = new Oracle();
-        oracle.setPrice(10e36);
-
-        CollateralParams[] memory collaterals = new CollateralParams[](1);
-        collaterals[0] = CollateralParams({
-            token: address(collateralToken),
-            lltv: 0.945e18,
-            liquidationCursor: LIQUIDATION_CURSOR,
-            oracle: address(oracle)
-        });
-
-        market = Market({
-            chainId: block.chainid,
-            midnight: address(midnight),
-            loanToken: address(loanToken),
-            collateralParams: collaterals,
-            maturity: block.timestamp + 7 days,
-            rcfThreshold: 0,
-            enterGate: address(0),
-            liquidatorGate: address(0)
-        });
-        marketId = IdLib.toId(market);
 
         // Seed a collateral position for the initiator to withdraw against.
         collateralToken.mint(address(adapter), AMOUNT);
@@ -430,6 +372,9 @@ contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
 
         callback = makeAddr("Callback");
         ratePolicy = makeAddr("RatePolicy");
+    }
+
+    function _deployAdapter() internal override returns (TenorAdapter) {
         ratifier = new MigrationRatifier(
             address(midnight),
             makeAddr("BorrowMidnightRenewalCallback"),
@@ -440,10 +385,7 @@ contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
             makeAddr("LendMidnightRenewalCallback"),
             address(this)
         );
-        adapter = new TenorAdapter(address(bundler3), address(midnight), address(ratifier));
-
-        vm.prank(user);
-        midnight.setIsAuthorized(address(adapter), true, user);
+        return new TenorAdapter(address(bundler3), address(midnight), address(ratifier));
     }
 
     function _params() internal view returns (IMigrationRatifier.UserMigrationParams memory) {
@@ -598,13 +540,7 @@ contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
     }
 }
 
-abstract contract TenorAdapterPositionTestBase is TenorAdapterTestBase {
-    MockERC20 internal loanToken;
-    MockERC20 internal collateralToken;
-    Oracle internal oracle;
-    Market internal market;
-    bytes32 internal marketId;
-
+abstract contract TenorAdapterPositionTestBase is TenorAdapterMarketTestBase {
     address internal maker;
     RatifyAllRatifier internal ratifier;
 
@@ -613,32 +549,7 @@ abstract contract TenorAdapterPositionTestBase is TenorAdapterTestBase {
     function setUp() public virtual override {
         super.setUp();
         maker = makeAddr("Maker");
-
-        loanToken = new MockERC20("Loan", "LOAN", 18);
-        collateralToken = new MockERC20("Collateral", "COL", 18);
-        oracle = new Oracle();
-        oracle.setPrice(10e36);
         ratifier = new RatifyAllRatifier();
-
-        CollateralParams[] memory collaterals = new CollateralParams[](1);
-        collaterals[0] = CollateralParams({
-            token: address(collateralToken),
-            lltv: 0.945e18,
-            liquidationCursor: LIQUIDATION_CURSOR,
-            oracle: address(oracle)
-        });
-
-        market = Market({
-            chainId: block.chainid,
-            midnight: address(midnight),
-            loanToken: address(loanToken),
-            collateralParams: collaterals,
-            maturity: block.timestamp + 7 days,
-            rcfThreshold: 0,
-            enterGate: address(0),
-            liquidatorGate: address(0)
-        });
-        marketId = IdLib.toId(market);
 
         vm.prank(maker);
         midnight.setIsAuthorized(address(ratifier), true, maker);

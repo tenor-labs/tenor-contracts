@@ -78,7 +78,6 @@ contract MidnightAdapterCallbackGuardTest is Fixtures {
     function test_midnightFlashLoan_mismatchedLengths_reverts() public {
         address[] memory tokens = new address[](2);
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 1e18;
 
         vm.prank(address(bundler3));
         vm.expectRevert(IMidnightAdapter.InconsistentInput.selector);
@@ -86,9 +85,8 @@ contract MidnightAdapterCallbackGuardTest is Fixtures {
     }
 
     function test_midnightFlashLoan_zeroAmount_reverts() public {
-        MockERC20 token = new MockERC20("Token", "TK", 18);
         address[] memory tokens = new address[](1);
-        tokens[0] = address(token);
+        tokens[0] = makeAddr("Token");
         uint256[] memory amounts = new uint256[](1);
 
         vm.prank(address(bundler3));
