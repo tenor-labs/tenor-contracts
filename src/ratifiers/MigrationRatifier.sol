@@ -17,6 +17,24 @@ import {IMigrationRatifier} from "./interfaces/IMigrationRatifier.sol";
 /// `setParams` applies across every maturity of that market.
 /// @dev `setParams`/`clearParams` use the Midnight contract as authorization authority: the caller must be `onBehalf`
 /// or authorized by it on Midnight.
+///
+/// STANDING CONSENT
+/// @dev Params are never consumed, have no amount cap or nonce, and opposite-direction params can be live at once,
+/// so a keeper can repeatedly migrate the user's entire position in either direction while set.
+/// @dev Params set by a Midnight-authorized delegate survive a later revocation of that delegate.
+///
+/// ROUTE LOOP SAFETY
+/// @dev Routes are validated independently; crossing paths are not checked. Routes that loop back to the starting
+/// market (e.g. both `BORROW_BLUE_TO_MIDNIGHT_CALLBACK` and `BORROW_MIDNIGHT_TO_BLUE_CALLBACK` between the same
+/// markets) let a keeper renew through the full loop in one transaction.
+/// @dev A loop must either carry a positive spread (enter rate > exit rate) or not have both legs active at once
+/// (e.g. `BlueToMidnight.minDuration > MidnightToBlue.renewalWindow`).
+/// @dev The single-leg case is the same constraint: keep `renewalWindow < minDuration` or a freshly renewed position
+/// is immediately renewable, allowing repeated renewals (and fees) within one window.
+///
+/// TARGET MARKET
+/// @dev The target market choice is the user's responsibility: callbacks only check loan-token equality, not
+/// collateral quality, so a lend renewal can enter a market with pending bad debt that the lender later absorbs.
 contract MigrationRatifier is BaseMigrationRatifier {
     /// @inheritdoc IMigrationRatifier
     /// @dev Top 6 bytes = "tenor" (0x74656e6f72) domain prefix + schema version byte 0xE0; the 0xE0-0xEF
@@ -60,24 +78,6 @@ contract MigrationRatifier is BaseMigrationRatifier {
     {}
 
     /// @dev Accepting `onBehalf` lets bundler flows atomically update params alongside a take.
-    ///
-    /// STANDING CONSENT:
-    /// Params are never consumed, have no amount cap or nonce, and opposite-direction params can be live at once, so
-    /// a keeper can repeatedly migrate the user's entire position in either direction while set. Params set by a
-    /// Midnight-authorized delegate survive a later revocation of that delegate.
-    ///
-    /// ROUTE LOOP SAFETY:
-    /// Routes are validated independently; crossing paths are not checked. Routes that loop back to the starting
-    /// market (e.g. both `BORROW_BLUE_TO_MIDNIGHT_CALLBACK` and `BORROW_MIDNIGHT_TO_BLUE_CALLBACK` between the same
-    /// markets) let a keeper renew through the full loop in one transaction. A loop must either carry a positive
-    /// spread (enter rate > exit rate) or not have both legs active at once
-    /// (e.g. `BlueToMidnight.minDuration > MidnightToBlue.renewalWindow`). The single-leg case is the same constraint:
-    /// keep `renewalWindow < minDuration` or a freshly renewed position is immediately renewable, allowing repeated
-    /// renewals (and fees) within one window.
-    ///
-    /// TARGET MARKET:
-    /// The target market choice is the user's responsibility: callbacks only check loan-token equality, not
-    /// collateral quality, so a lend renewal can enter a market with pending bad debt that the lender later absorbs.
     function setParams(
         address onBehalf,
         address callback,

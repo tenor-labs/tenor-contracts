@@ -372,15 +372,15 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
             || callback == LEND_MIDNIGHT_RENEWAL_CALLBACK;
     }
 
-    /// @dev Returns the per-WAD effective face value at maturity after Midnight's continuous fee on
-    /// Midnight-target lend flows, and WAD otherwise.
+    /// @dev Returns the fraction of each unit's face value (in WAD) that the lender keeps at maturity after
+    /// Midnight's continuous fee, for Midnight-target lend flows; WAD otherwise. Used by the rate check to price the
+    /// fee into the ratified rate.
     /// @dev Matches Midnight's fee model: the lifetime fee is fixed at take time as continuousFee * timeToMaturity
     /// and amortized linearly to maturity, so the lender nets units * (WAD - continuousFee * timeToMaturity) / WAD.
-    /// @dev Conservative assumption: the fee is charged on the entire fill, though Midnight applies it only to the
-    /// credit increase net of the buyer's pre-existing debt (zeroFloorSub(units, debt)). Overstating the fee
-    /// understates the effective face, so the check can only tighten: a passing offer always honors the ratified
-    /// rate (strictly better when the buyer holds existing debt), and the only failure mode is a conservative
-    /// rejection, never a realized rate below ratified.
+    /// @dev The fee is measured on the entire fill, though Midnight only charges it on the credit increase net of
+    /// the buyer's pre-existing debt (zeroFloorSub(units, debt)). When the buyer has pre-existing debt the fee is
+    /// therefore overstated: an offer that passes ratification realizes a rate at least as good as ratified, and an
+    /// offer may be rejected that an exact fee computation would have accepted.
     function _effectiveUnitsPerWad(address callback, bytes32 marketId, Offer memory offer)
         internal
         view
