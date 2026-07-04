@@ -4,17 +4,27 @@ pragma solidity ^0.8.0;
 import {TenorAdapter} from "../../src/bundler/TenorAdapter.sol";
 import {MigrationRatifier} from "../../src/ratifiers/MigrationRatifier.sol";
 import {IMigrationRatifier} from "../../src/ratifiers/interfaces/IMigrationRatifier.sol";
+import {IMidnightAdapter} from "../../src/bundler/interfaces/IMidnightAdapter.sol";
 import {Midnight} from "@midnight/Midnight.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
 import {EventsLib} from "@midnight/libraries/EventsLib.sol";
 import {ErrorsLib} from "@bundler3/libraries/ErrorsLib.sol";
 import {IBundler3, Call} from "@bundler3/interfaces/IBundler3.sol";
-import {IMidnight, Market, CollateralParams} from "@midnight/interfaces/IMidnight.sol";
+import {IMidnight, Market, CollateralParams, Offer} from "@midnight/interfaces/IMidnight.sol";
+import {IRatifier} from "@midnight/interfaces/IRatifier.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
+import {TickLib} from "@midnight/libraries/TickLib.sol";
+import {CALLBACK_SUCCESS, DEFAULT_TICK_SPACING} from "@midnight/libraries/ConstantsLib.sol";
 import {Fixtures} from "../helpers/Fixtures.sol";
 import {MockERC20} from "../helpers/mocks/MockERC20.sol";
 import {Oracle} from "../helpers/Oracle.sol";
 import {LIQUIDATION_CURSOR} from "../helpers/MaxLifLib.sol";
+
+contract RatifyAllRatifier is IRatifier {
+    function isRatified(Offer memory, bytes memory, address) external pure returns (bytes32) {
+        return CALLBACK_SUCCESS;
+    }
+}
 
 contract TenorAdapterTestBase is Fixtures {
     TenorAdapter internal adapter;
@@ -217,7 +227,7 @@ contract TenorAdapterSupplyCollateralTest is TenorAdapterTestBase {
 
     function test_midnightSupplyCollateral_zeroAmount_reverts() public {
         vm.prank(user);
-        vm.expectRevert();
+        vm.expectRevert(ErrorsLib.ZeroAmount.selector);
         bundler3.multicall(_supplyCall(0));
     }
 }
@@ -360,6 +370,26 @@ contract TenorAdapterWithdrawTest is TenorAdapterTestBase {
         assertEq(collateralToken.balanceOf(receiver), AMOUNT, "receiver got the collateral");
         assertEq(collateralToken.balanceOf(address(adapter)), 0, "nothing parked on the adapter");
         assertEq(midnight.collateral(marketId, user, 0), 0, "position withdrawn in full");
+    }
+
+    function test_midnightWithdrawCollateral_maxSentinel_withdrawsFullPosition() public {
+        vm.prank(user);
+        bundler3.multicall(_withdrawCollateralCall(type(uint256).max, receiver));
+
+        assertEq(collateralToken.balanceOf(receiver), AMOUNT, "receiver got the full collateral");
+        assertEq(midnight.collateral(marketId, user, 0), 0, "position withdrawn in full");
+    }
+
+    function test_midnightWithdrawCollateral_zeroAmount_reverts() public {
+        vm.prank(user);
+        vm.expectRevert(ErrorsLib.ZeroAmount.selector);
+        bundler3.multicall(_withdrawCollateralCall(0, receiver));
+    }
+
+    function test_midnightWithdraw_zeroAmount_reverts() public {
+        vm.prank(user);
+        vm.expectRevert(ErrorsLib.ZeroAmount.selector);
+        bundler3.multicall(_makeCall(abi.encodeCall(adapter.midnightWithdraw, (market, 0, receiver))));
     }
 
     function test_midnightWithdrawCollateral_toAdapter_keepsForChaining() public {
@@ -565,5 +595,172 @@ contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
 
         (address clearedPolicy,,,,,) = ratifier.userParams(user, callback, src, tgt);
         assertEq(clearedPolicy, address(0));
+    }
+}
+
+abstract contract TenorAdapterPositionTestBase is TenorAdapterTestBase {
+    MockERC20 internal loanToken;
+    MockERC20 internal collateralToken;
+    Oracle internal oracle;
+    Market internal market;
+    bytes32 internal marketId;
+
+    address internal maker;
+    RatifyAllRatifier internal ratifier;
+
+    uint256 internal constant POSITION_UNITS = 50e18;
+
+    function setUp() public virtual override {
+        super.setUp();
+        maker = makeAddr("Maker");
+
+        loanToken = new MockERC20("Loan", "LOAN", 18);
+        collateralToken = new MockERC20("Collateral", "COL", 18);
+        oracle = new Oracle();
+        oracle.setPrice(10e36);
+        ratifier = new RatifyAllRatifier();
+
+        CollateralParams[] memory collaterals = new CollateralParams[](1);
+        collaterals[0] = CollateralParams({
+            token: address(collateralToken),
+            lltv: 0.945e18,
+            liquidationCursor: LIQUIDATION_CURSOR,
+            oracle: address(oracle)
+        });
+
+        market = Market({
+            chainId: block.chainid,
+            midnight: address(midnight),
+            loanToken: address(loanToken),
+            collateralParams: collaterals,
+            maturity: block.timestamp + 7 days,
+            rcfThreshold: 0,
+            enterGate: address(0),
+            liquidatorGate: address(0)
+        });
+        marketId = IdLib.toId(market);
+
+        vm.prank(maker);
+        midnight.setIsAuthorized(address(ratifier), true, maker);
+    }
+
+    function _offer(bool buy) internal view returns (Offer memory) {
+        return Offer({
+            market: market,
+            buy: buy,
+            maker: maker,
+            start: block.timestamp,
+            expiry: block.timestamp + 200,
+            tick: TickLib.priceToTick(0.99e18, DEFAULT_TICK_SPACING),
+            group: keccak256("offer"),
+            callback: address(0),
+            callbackData: "",
+            receiverIfMakerIsSeller: buy ? address(0) : maker,
+            ratifier: address(ratifier),
+            reduceOnly: false,
+            maxUnits: type(uint128).max,
+            maxAssets: 0,
+            continuousFeeCap: type(uint256).max
+        });
+    }
+}
+
+contract TenorAdapterRepayResolutionTest is TenorAdapterPositionTestBase {
+    function setUp() public override {
+        super.setUp();
+
+        // Seed a debt position for the initiator: maker is the buyer/lender, user takes as seller.
+        collateralToken.mint(user, 1_000e18);
+        vm.startPrank(user);
+        collateralToken.approve(address(midnight), type(uint256).max);
+        midnight.supplyCollateral(market, 0, 1_000e18, user);
+        vm.stopPrank();
+
+        loanToken.mint(maker, 100e18);
+        vm.prank(maker);
+        loanToken.approve(address(midnight), type(uint256).max);
+
+        vm.prank(user);
+        midnight.take(_offer(true), "", POSITION_UNITS, user, user, address(0), "");
+    }
+
+    function _repayCall(uint256 assets, uint256 debt) internal view returns (Call[] memory) {
+        return _makeCall(abi.encodeCall(adapter.midnightRepay, (market, assets, debt, address(0), "")));
+    }
+
+    function test_midnightRepay_maxDebt_repaysFullDebt() public {
+        loanToken.mint(address(adapter), POSITION_UNITS);
+        assertEq(midnight.debt(marketId, user), POSITION_UNITS);
+
+        vm.prank(user);
+        bundler3.multicall(_repayCall(0, type(uint256).max));
+
+        assertEq(midnight.debt(marketId, user), 0, "debt fully repaid");
+        assertEq(loanToken.balanceOf(address(adapter)), 0, "adapter paid the resolved debt");
+    }
+
+    function test_midnightRepay_explicitDebt_repaysExactUnits() public {
+        loanToken.mint(address(adapter), POSITION_UNITS);
+
+        vm.prank(user);
+        bundler3.multicall(_repayCall(0, POSITION_UNITS / 2));
+
+        assertEq(midnight.debt(marketId, user), POSITION_UNITS / 2, "half the debt remains");
+        assertEq(loanToken.balanceOf(address(adapter)), POSITION_UNITS / 2, "only the explicit units were pulled");
+    }
+
+    function test_midnightRepay_maxAssets_usesFullAdapterBalance() public {
+        loanToken.mint(address(adapter), POSITION_UNITS / 2);
+
+        vm.prank(user);
+        bundler3.multicall(_repayCall(type(uint256).max, 0));
+
+        assertEq(midnight.debt(marketId, user), POSITION_UNITS / 2, "debt reduced by the full adapter balance");
+        assertEq(loanToken.balanceOf(address(adapter)), 0, "full balance consumed");
+    }
+
+    function test_midnightRepay_bothAssetsAndDebt_reverts() public {
+        vm.prank(user);
+        vm.expectRevert(IMidnightAdapter.InconsistentInput.selector);
+        bundler3.multicall(_repayCall(1, 1));
+    }
+}
+
+contract TenorAdapterWithdrawCreditTest is TenorAdapterPositionTestBase {
+    address internal receiver;
+
+    function setUp() public override {
+        super.setUp();
+        receiver = makeAddr("Receiver");
+
+        // Seed a credit position for the initiator: maker is the seller/borrower, user takes as
+        // buyer, then the maker repays so the units are withdrawable.
+        collateralToken.mint(maker, 1_000e18);
+        vm.startPrank(maker);
+        collateralToken.approve(address(midnight), type(uint256).max);
+        midnight.supplyCollateral(market, 0, 1_000e18, maker);
+        vm.stopPrank();
+
+        loanToken.mint(user, 100e18);
+        vm.startPrank(user);
+        loanToken.approve(address(midnight), type(uint256).max);
+        midnight.take(_offer(false), "", POSITION_UNITS, user, address(0), address(0), "");
+        vm.stopPrank();
+
+        loanToken.mint(maker, POSITION_UNITS);
+        vm.startPrank(maker);
+        loanToken.approve(address(midnight), type(uint256).max);
+        midnight.repay(market, POSITION_UNITS, maker, address(0), "");
+        vm.stopPrank();
+    }
+
+    function test_midnightWithdraw_maxSentinel_withdrawsFullCredit() public {
+        assertEq(midnight.credit(marketId, user), POSITION_UNITS);
+
+        vm.prank(user);
+        bundler3.multicall(_makeCall(abi.encodeCall(adapter.midnightWithdraw, (market, type(uint256).max, receiver))));
+
+        assertEq(midnight.credit(marketId, user), 0, "credit fully withdrawn");
+        assertEq(loanToken.balanceOf(receiver), POSITION_UNITS, "receiver got the resolved units");
     }
 }

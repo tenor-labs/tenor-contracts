@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {TenorAdapter} from "../../src/bundler/TenorAdapter.sol";
+import {IMidnightAdapter} from "../../src/bundler/interfaces/IMidnightAdapter.sol";
 import {Midnight} from "@midnight/Midnight.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
 import {IMidnight, Market, CollateralParams} from "@midnight/interfaces/IMidnight.sol";
@@ -72,6 +73,27 @@ contract MidnightAdapterCallbackGuardTest is Fixtures {
         adapter.midnightFlashLoan(tokens, amounts, "");
 
         assertEq(token.allowance(address(adapter), address(midnight)), type(uint256).max, "post: allowance set to max");
+    }
+
+    function test_midnightFlashLoan_mismatchedLengths_reverts() public {
+        address[] memory tokens = new address[](2);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1e18;
+
+        vm.prank(address(bundler3));
+        vm.expectRevert(IMidnightAdapter.InconsistentInput.selector);
+        adapter.midnightFlashLoan(tokens, amounts, "");
+    }
+
+    function test_midnightFlashLoan_zeroAmount_reverts() public {
+        MockERC20 token = new MockERC20("Token", "TK", 18);
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(token);
+        uint256[] memory amounts = new uint256[](1);
+
+        vm.prank(address(bundler3));
+        vm.expectRevert(ErrorsLib.ZeroAmount.selector);
+        adapter.midnightFlashLoan(tokens, amounts, "");
     }
 
     /* ═══════ onFlashLoan guards ═══════ */
