@@ -74,6 +74,7 @@ struct Action {
 /// @notice Executes batches of Midnight takes with per-batch fill, price, continuous-fee and crossing protections.
 /// @dev The initiator (`msg.sender` here, `Bundler3.initiator()` in the adapter) drives the batch and is always the
 /// Midnight taker; `offer.maker` is the counterparty providing liquidity for a given action.
+/// @dev Self-take is not explicitly rejected: `offer.maker == initiator` reverts implicitly.
 /// @dev Without a feeAdjuster, maxFill, minFill and the price band bound raw Midnight amounts, not net-taker amounts.
 /// @dev Takes from nested callbacks are invisible to the batch's maxFill/minFill accounting and BatchExecuted totals.
 /// @dev Maker-supplied policies, resolvers and clamps are untrusted code; quoting and dispatch may revert or burn gas.
