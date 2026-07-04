@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {IMorpho} from "lib/morpho-blue/src/interfaces/IMorpho.sol";
+import {IMorpho} from "@morphoBlue/interfaces/IMorpho.sol";
 import {IBundler3, Call} from "@bundler3/interfaces/IBundler3.sol";
 
 abstract contract Fixtures is Test {

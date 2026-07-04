@@ -332,6 +332,41 @@ contract TakeRouterTest is BoundaryTestBase {
         assertLe(units, params.maxFill, "UNITS: capped");
     }
 
+    /// @dev maxFill at or above type(uint256).max / WAD used to skip the budget-to-units conversion;
+    /// the budget now saturates at type(uint128).max and converts uniformly, without binding the fill.
+    function test_fillAxis_assets_hugeMaxFill_doesNotBind() public {
+        _primeBuyerSide();
+        Action[] memory actions = new Action[](1);
+        actions[0] = _buyerSideAction(50e18, DEFAULT_TICK, false);
+
+        ExecuteParams memory params = _defaultExecuteParams(lender);
+        params.fillAxis = FillAxis.ASSETS;
+        params.maxFill = type(uint256).max / 1e18;
+
+        vm.prank(lender);
+        (,, uint256 units) = router.execute(params, actions);
+        assertEq(units, 50e18, "HUGE_MAX: saturated budget does not bind");
+    }
+
+    /// @dev Same band through the fee-adjuster path: the saturated budget must not overflow the adjuster's
+    /// WAD inversions.
+    function test_fillAxis_assets_hugeMaxFill_withFeeAdjuster() public {
+        _primeBuyerSide();
+        Action memory action = _buyerSideAction(50e18, DEFAULT_TICK, false);
+        action.feeAdjuster = address(new CallbackFeeAdjuster(address(midnight)));
+        action.feeAdjusterData = abi.encode(uint256(0.1e18), CallbackFeeAdjuster.FeeFormula.INTEREST);
+        Action[] memory actions = new Action[](1);
+        actions[0] = action;
+
+        ExecuteParams memory params = _defaultExecuteParams(lender);
+        params.fillAxis = FillAxis.ASSETS;
+        params.maxFill = type(uint256).max / 1e18;
+
+        vm.prank(lender);
+        (,, uint256 units) = router.execute(params, actions);
+        assertEq(units, 50e18, "HUGE_MAX_ADJ: saturated budget does not bind through adjuster");
+    }
+
     /* ═══════════════════════════════════════════════════════════════
        Section 4 — Price slippage (band always available)
        ═══════════════════════════════════════════════════════════════ */

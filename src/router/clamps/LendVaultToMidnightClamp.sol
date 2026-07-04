@@ -7,8 +7,8 @@ import {IMidnight, Offer} from "@midnight/interfaces/IMidnight.sol";
 import {TakeMathLib} from "../../libraries/TakeMathLib.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IMorpho, Id, MarketParams} from "../../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MorphoBalancesLib} from "../../../lib/morpho-blue/src/libraries/periphery/MorphoBalancesLib.sol";
+import {IMorpho, Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MorphoBalancesLib} from "@morphoBlue/libraries/periphery/MorphoBalancesLib.sol";
 
 /// @title LendVaultToMidnightClamp
 /// @notice Clamp that bounds takeUnits for vault to Midnight lend migrations (cadence-based).

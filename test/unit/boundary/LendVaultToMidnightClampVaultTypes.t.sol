@@ -8,10 +8,10 @@ import {ITakeClamp} from "../../../src/router/interfaces/ITakeClamp.sol";
 import {Offer} from "@midnight/interfaces/IMidnight.sol";
 import {Signature} from "@midnight/ratifiers/interfaces/IEcrecoverRatifier.sol";
 import {ILendVaultToMidnightCallback} from "@callbacks/interfaces/ILendVaultToMidnightCallback.sol";
-import {IMorpho, Id, MarketParams} from "../../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MorphoBalancesLib} from "../../../lib/morpho-blue/src/libraries/periphery/MorphoBalancesLib.sol";
+import {IMorpho, Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MorphoBalancesLib} from "@morphoBlue/libraries/periphery/MorphoBalancesLib.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {MarketParamsLib} from "../../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 
 /// @title LendVaultToMidnightClampVaultTypes
 /// @notice Tests for LendVaultToMidnightClamp across all three VaultType modes:

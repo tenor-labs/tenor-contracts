@@ -24,9 +24,9 @@ import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {StaticRatePolicy} from "../../src/ratifiers/policies/StaticRatePolicy.sol";
-import {IMorpho, Market as BlueMarket, MarketParams} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
-import {IIrm} from "../../lib/morpho-blue/src/interfaces/IIrm.sol";
+import {IMorpho, Market as BlueMarket, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
+import {IIrm} from "@morphoBlue/interfaces/IIrm.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
 
 /// @dev Zero-rate IRM for Morpho Blue market creation.

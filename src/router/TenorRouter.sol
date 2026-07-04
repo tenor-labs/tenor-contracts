@@ -321,6 +321,7 @@ abstract contract TenorRouter is ITenorRouter {
 
     /// @dev Returns `takeUnits` capped by the remaining fill budget (`remaining`, denominated in assets or units
     /// depending on `fillIndex`), the offer's remaining capacity, and the optional `clamp`.
+    /// @dev `remaining` is clamped at `type(uint128).max` so adjuster/inversion WAD math cannot overflow.
     function _capTakeUnits(
         Action calldata action,
         uint256 takeUnits,
@@ -328,13 +329,12 @@ abstract contract TenorRouter is ITenorRouter {
         uint256 remaining,
         bytes32 marketId
     ) internal view returns (uint256) {
-        if (remaining < type(uint256).max / WAD) {
-            uint256 cap = action.feeAdjuster != address(0)
-                ? ICallbackFeeAdjuster(action.feeAdjuster)
-                    .beforeDispatch(action.offer, fillIndex, remaining, action.feeAdjusterData)
-                : RouterLib.budgetToUnits(_MORPHO_MIDNIGHT, marketId, action.offer, fillIndex, remaining);
-            takeUnits = UtilsLib.min(takeUnits, cap);
-        }
+        uint256 budget = UtilsLib.min(remaining, type(uint128).max);
+        uint256 cap = action.feeAdjuster != address(0)
+            ? ICallbackFeeAdjuster(action.feeAdjuster)
+                .beforeDispatch(action.offer, fillIndex, budget, action.feeAdjusterData)
+            : RouterLib.budgetToUnits(_MORPHO_MIDNIGHT, marketId, action.offer, fillIndex, budget);
+        takeUnits = UtilsLib.min(takeUnits, cap);
         if (takeUnits == 0) return 0;
 
         takeUnits =

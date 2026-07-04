@@ -11,8 +11,8 @@ import {IBorrowMidnightToBlueCallback} from "@callbacks/interfaces/IBorrowMidnig
 import {Offer, Market, CollateralParams} from "@midnight/interfaces/IMidnight.sol";
 import {CALLBACK_SUCCESS} from "@midnight/libraries/ConstantsLib.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {MarketParams, Id} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {MarketParams, Id} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {MarketMakingPolicy} from "../../src/ratifiers/policies/MarketMakingPolicy.sol";
 import {IMarketMakingPolicy} from "../../src/ratifiers/interfaces/IMarketMakingPolicy.sol";

@@ -9,8 +9,8 @@ import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {WAD, MAX_CONTINUOUS_FEE} from "@midnight/libraries/ConstantsLib.sol";
 import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {StaticRatePolicy} from "../../src/ratifiers/policies/StaticRatePolicy.sol";
-import {Id, MarketParams} from "../../lib/morpho-blue/src/interfaces/IMorpho.sol";
-import {MarketParamsLib} from "../../lib/morpho-blue/src/libraries/MarketParamsLib.sol";
+import {Id} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
 
 /// @title MigrationRatifierIntegrationTest
 /// @notice End-to-end tests for the maker-on-behalf migration model: the migrating user is the offer MAKER, the
