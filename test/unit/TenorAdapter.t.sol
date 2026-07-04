@@ -2,9 +2,12 @@
 pragma solidity ^0.8.0;
 
 import {TenorAdapter} from "../../src/bundler/TenorAdapter.sol";
+import {MigrationRatifier} from "../../src/ratifiers/MigrationRatifier.sol";
+import {IMigrationRatifier} from "../../src/ratifiers/interfaces/IMigrationRatifier.sol";
 import {Midnight} from "@midnight/Midnight.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
 import {EventsLib} from "@midnight/libraries/EventsLib.sol";
+import {ErrorsLib} from "@bundler3/libraries/ErrorsLib.sol";
 import {IBundler3, Call} from "@bundler3/interfaces/IBundler3.sol";
 import {IMidnight, Market, CollateralParams} from "@midnight/interfaces/IMidnight.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
@@ -37,6 +40,19 @@ contract TenorAdapterTestBase is Fixtures {
     function _makeCall(bytes memory data) internal view returns (Call[] memory calls) {
         calls = new Call[](1);
         calls[0] = Call({to: address(adapter), data: data, value: 0, skipRevert: false, callbackHash: bytes32(0)});
+    }
+}
+
+contract TenorAdapterConstructorTest is TenorAdapterTestBase {
+    function test_constructor_revertsZeroRatifier() public {
+        vm.expectRevert(ErrorsLib.ZeroAddress.selector);
+        new TenorAdapter(address(bundler3), address(midnight), address(0));
+    }
+
+    function test_constructor_setsRatifier() public {
+        address ratifier = makeAddr("RealRatifier");
+        TenorAdapter fresh = new TenorAdapter(address(bundler3), address(midnight), ratifier);
+        assertEq(address(fresh.RATIFIER()), ratifier);
     }
 }
 
@@ -367,5 +383,187 @@ contract TenorAdapterWithdrawTest is TenorAdapterTestBase {
         vm.prank(user);
         vm.expectRevert();
         adapter.midnightWithdrawCollateral(market, 0, AMOUNT, receiver);
+    }
+}
+
+contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
+    MigrationRatifier internal ratifier;
+
+    address internal callback;
+    address internal ratePolicy;
+
+    bytes32 internal constant SOURCE_ID = keccak256("source-tenor-market");
+    bytes32 internal constant TARGET_ID = keccak256("target-tenor-market");
+
+    function setUp() public override {
+        super.setUp();
+
+        callback = makeAddr("Callback");
+        ratePolicy = makeAddr("RatePolicy");
+        ratifier = new MigrationRatifier(
+            address(midnight),
+            makeAddr("BorrowMidnightRenewalCallback"),
+            makeAddr("BorrowBlueToMidnightCallback"),
+            makeAddr("LendVaultToMidnightCallback"),
+            makeAddr("BorrowMidnightToBlueCallback"),
+            makeAddr("LendMidnightToVaultCallback"),
+            makeAddr("LendMidnightRenewalCallback"),
+            address(this)
+        );
+        adapter = new TenorAdapter(address(bundler3), address(midnight), address(ratifier));
+
+        vm.prank(user);
+        midnight.setIsAuthorized(address(adapter), true, user);
+    }
+
+    function _params() internal view returns (IMigrationRatifier.UserMigrationParams memory) {
+        return IMigrationRatifier.UserMigrationParams({
+            interestRatePolicy: ratePolicy,
+            renewalWindow: uint32(7 days),
+            minDuration: uint32(7 days),
+            maxDuration: uint32(365 days),
+            renewalCadence: address(0),
+            limitRatePerSecond: type(uint40).max
+        });
+    }
+
+    function _setParamsCall() internal view returns (Call[] memory) {
+        return _makeCall(abi.encodeCall(adapter.migrationSetParams, (callback, SOURCE_ID, TARGET_ID, _params())));
+    }
+
+    function _clearParamsCall() internal view returns (Call[] memory) {
+        return _makeCall(abi.encodeCall(adapter.migrationClearParams, (callback, SOURCE_ID, TARGET_ID)));
+    }
+
+    function test_migrationSetParams_storesForInitiator() public {
+        vm.prank(user);
+        bundler3.multicall(_setParamsCall());
+
+        (
+            address interestRatePolicy,
+            uint32 renewalWindow,
+            uint32 minDuration,
+            uint32 maxDuration,
+            address renewalCadence,
+            uint40 limitRatePerSecond
+        ) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
+        assertEq(interestRatePolicy, ratePolicy);
+        assertEq(renewalWindow, uint32(7 days));
+        assertEq(minDuration, uint32(7 days));
+        assertEq(maxDuration, uint32(365 days));
+        assertEq(renewalCadence, address(0));
+        assertEq(limitRatePerSecond, type(uint40).max);
+
+        (address adapterPolicy,,,,,) = ratifier.userParams(address(adapter), callback, SOURCE_ID, TARGET_ID);
+        assertEq(adapterPolicy, address(0), "params keyed by initiator, not adapter");
+    }
+
+    function test_migrationSetParams_pinsOnBehalfToInitiator() public {
+        address attacker = makeAddr("Attacker");
+
+        vm.prank(attacker);
+        midnight.setIsAuthorized(address(adapter), true, attacker);
+
+        vm.prank(attacker);
+        bundler3.multicall(_setParamsCall());
+
+        (address victimPolicy,,,,,) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
+        (address attackerPolicy,,,,,) = ratifier.userParams(attacker, callback, SOURCE_ID, TARGET_ID);
+        assertEq(victimPolicy, address(0), "victim params untouched");
+        assertEq(attackerPolicy, ratePolicy, "params landed on initiator");
+    }
+
+    function test_migrationSetParams_emitsEvent() public {
+        vm.prank(user);
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsSet(user, callback, SOURCE_ID, TARGET_ID, _params());
+        bundler3.multicall(_setParamsCall());
+    }
+
+    function test_migrationSetParams_unauthorizedInitiator_ratifierReverts() public {
+        vm.prank(unauthorized);
+        vm.expectRevert(IMigrationRatifier.Unauthorized.selector);
+        bundler3.multicall(_setParamsCall());
+    }
+
+    function test_migrationSetParams_onlyBundler() public {
+        vm.prank(user);
+        vm.expectRevert(ErrorsLib.UnauthorizedSender.selector);
+        adapter.migrationSetParams(callback, SOURCE_ID, TARGET_ID, _params());
+    }
+
+    function test_migrationClearParams_clearsInitiatorParams() public {
+        vm.prank(user);
+        bundler3.multicall(_setParamsCall());
+
+        vm.prank(user);
+        bundler3.multicall(_clearParamsCall());
+
+        (
+            address interestRatePolicy,
+            uint32 renewalWindow,
+            uint32 minDuration,
+            uint32 maxDuration,
+            address renewalCadence,
+            uint40 limitRatePerSecond
+        ) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
+        assertEq(interestRatePolicy, address(0));
+        assertEq(renewalWindow, 0);
+        assertEq(minDuration, 0);
+        assertEq(maxDuration, 0);
+        assertEq(renewalCadence, address(0));
+        assertEq(limitRatePerSecond, 0);
+    }
+
+    function test_migrationClearParams_pinsOnBehalfToInitiator() public {
+        address attacker = makeAddr("Attacker");
+
+        vm.prank(user);
+        bundler3.multicall(_setParamsCall());
+
+        vm.prank(attacker);
+        midnight.setIsAuthorized(address(adapter), true, attacker);
+
+        vm.prank(attacker);
+        bundler3.multicall(_clearParamsCall());
+
+        (address victimPolicy,,,,,) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
+        assertEq(victimPolicy, ratePolicy, "victim params not cleared by another initiator");
+    }
+
+    function test_migrationClearParams_emitsEvent() public {
+        vm.prank(user);
+        bundler3.multicall(_setParamsCall());
+
+        vm.prank(user);
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsCleared(user, callback, SOURCE_ID, TARGET_ID);
+        bundler3.multicall(_clearParamsCall());
+    }
+
+    function test_migrationClearParams_unauthorizedInitiator_ratifierReverts() public {
+        vm.prank(unauthorized);
+        vm.expectRevert(IMigrationRatifier.Unauthorized.selector);
+        bundler3.multicall(_clearParamsCall());
+    }
+
+    function test_migrationClearParams_onlyBundler() public {
+        vm.prank(user);
+        vm.expectRevert(ErrorsLib.UnauthorizedSender.selector);
+        adapter.migrationClearParams(callback, SOURCE_ID, TARGET_ID);
+    }
+
+    function testFuzz_migrationSetAndClearParams(bytes32 src, bytes32 tgt) public {
+        vm.prank(user);
+        bundler3.multicall(_makeCall(abi.encodeCall(adapter.migrationSetParams, (callback, src, tgt, _params()))));
+
+        (address setPolicy,,,,,) = ratifier.userParams(user, callback, src, tgt);
+        assertEq(setPolicy, ratePolicy);
+
+        vm.prank(user);
+        bundler3.multicall(_makeCall(abi.encodeCall(adapter.migrationClearParams, (callback, src, tgt))));
+
+        (address clearedPolicy,,,,,) = ratifier.userParams(user, callback, src, tgt);
+        assertEq(clearedPolicy, address(0));
     }
 }
