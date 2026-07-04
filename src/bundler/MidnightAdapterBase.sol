@@ -53,7 +53,9 @@ abstract contract MidnightAdapterBase is CoreAdapter, IMidnightAdapter {
 
         if (units == 0) return;
 
-        SafeERC20.forceApprove(IERC20(market.loanToken), address(MORPHO_MIDNIGHT), type(uint256).max);
+        if (callbackAddr == address(0)) {
+            SafeERC20.forceApprove(IERC20(market.loanToken), address(MORPHO_MIDNIGHT), type(uint256).max);
+        }
         MORPHO_MIDNIGHT.repay(market, units, onBehalf, callbackAddr, callbackData);
     }
 
