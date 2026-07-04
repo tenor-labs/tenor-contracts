@@ -17,7 +17,8 @@ interface IMidnightAdapter is IFlashLoanCallback {
     ///      the call returns silently rather than reverting, so a best-effort residual or sweep repay can sit
     ///      unconditionally in a bundle even when an earlier leg already cleared the debt.
     /// @param market The market to repay.
-    /// @param assets The amount of assets to repay. Pass `type(uint256).max` to use the adapter's full balance.
+    /// @param assets The amount of assets to repay. Pass `type(uint256).max` to use the adapter's full balance
+    ///        (requires `callbackAddr == address(0)`, reverts `InconsistentInput` otherwise).
     /// @param debt The amount to repay. Pass `type(uint256).max` to repay the initiator's entire debt.
     /// @param callbackAddr The `Midnight.repay` callback target, forwarded as-is. Pass `address(0)` for no callback.
     ///      `MidnightAdapterBase` does not implement an `onRepay` handler.
