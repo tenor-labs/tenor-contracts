@@ -268,6 +268,19 @@ contract LendMidnightRenewalClampFuzzTest is ClampFuzzFixtures {
         }
     }
 
+    /// @dev Hashed in its own frame to keep _buildLendRenewalCreditOffer within stack
+    ///      limits under `forge coverage --ir-minimum` (unoptimized via_ir codegen).
+    function _renewalGroup(
+        string memory lenderLabel,
+        uint128 sourceCredit,
+        uint128 offerCapacity,
+        uint16 tick,
+        uint256 callbackFeeRate,
+        uint256 ttm
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(lenderLabel, sourceCredit, offerCapacity, tick, callbackFeeRate, ttm));
+    }
+
     /// @dev Internal helper: builds offer + runs clamp for Midnight to Midnight lend renewal tests.
     ///      Packs the small fuzz seeds into a single uint256 to keep the calling fuzz
     ///      function's stack pressure manageable for via_ir codegen.
@@ -314,7 +327,7 @@ contract LendMidnightRenewalClampFuzzTest is ClampFuzzFixtures {
             start: block.timestamp,
             expiry: block.timestamp + 1 hours,
             tick: tick,
-            group: keccak256(abi.encodePacked(lenderLabel, sourceCredit, offerCapacity, tick, callbackFeeRate, ttm)),
+            group: _renewalGroup(lenderLabel, sourceCredit, offerCapacity, tick, callbackFeeRate, ttm),
             callback: address(lendCallback),
             callbackData: abi.encode(
                 ILendMidnightRenewalCallback.CallbackData({
