@@ -5,8 +5,7 @@ pragma solidity 0.8.34;
 import {ICallbackFeeAdjuster} from "./interfaces/ICallbackFeeAdjuster.sol";
 import {CallbackLib} from "../libraries/CallbackLib.sol";
 import {RouterLib} from "../libraries/RouterLib.sol";
-import {Midnight} from "@midnight/Midnight.sol";
-import {Offer} from "@midnight/interfaces/IMidnight.sol";
+import {IMidnight, Offer} from "@midnight/interfaces/IMidnight.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
@@ -33,12 +32,12 @@ contract CallbackFeeAdjuster is ICallbackFeeAdjuster {
 
     /* IMMUTABLES */
 
-    Midnight public immutable MORPHO_MIDNIGHT;
+    IMidnight public immutable MORPHO_MIDNIGHT;
 
     /* CONSTRUCTOR */
 
     constructor(address morphoMidnight) {
-        MORPHO_MIDNIGHT = Midnight(morphoMidnight);
+        MORPHO_MIDNIGHT = IMidnight(morphoMidnight);
     }
 
     /* EXTERNAL */
