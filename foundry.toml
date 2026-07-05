@@ -6,7 +6,7 @@ auto_detect_solc = true
 evm_version = "osaka"
 via_ir = true
 optimizer = true
-optimizer_runs = 800
+optimizer_runs = 100000
 bytecode_hash = "none"
 fs_permissions = [{ access = "read", path = "./test/bin" }, { access = "read", path = "./out" }]
 remappings = [
@@ -29,6 +29,13 @@ yul = true
 
 [profile.default.optimizer_details.yul_details]
 stack_allocation = true
+
+# lib/midnight declares `pragma solidity ^0.8.0` but its assembly uses the Osaka `clz`
+# builtin, so auto-detect may batch it into an older-solc compilation unit alongside
+# vault-v2 (pinned 0.8.28). Force a clz-capable solc for midnight sources.
+[[profile.default.compilation_restrictions]]
+paths = "lib/midnight/**"
+version = ">=0.8.34"
 
 [profile.default.fmt]
 wrap_comments = true

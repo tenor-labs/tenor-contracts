@@ -265,7 +265,10 @@ The following were **outside the formal scope** of the security audits:
 
 ## Build
 
+CI uses Foundry `v1.7.1` (pinned in [`ci.yml`](.github/workflows/ci.yml)); install the same version locally to match, as `forge fmt` output differs between versions:
+
 ```bash
+foundryup --install v1.7.1
 forge build
 ```
 

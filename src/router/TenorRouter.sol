@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Les entreprises shippooor inc.
 pragma solidity 0.8.34;
 
-import {Midnight} from "@midnight/Midnight.sol";
 import {IMidnight, Offer, Market} from "@midnight/interfaces/IMidnight.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
@@ -81,12 +80,12 @@ struct Action {
 abstract contract TenorRouter is ITenorRouter {
     /* IMMUTABLES */
 
-    Midnight internal immutable _MORPHO_MIDNIGHT;
+    IMidnight internal immutable _MORPHO_MIDNIGHT;
 
     /* CONSTRUCTOR */
 
     constructor(address morphoMidnight) {
-        _MORPHO_MIDNIGHT = Midnight(morphoMidnight);
+        _MORPHO_MIDNIGHT = IMidnight(morphoMidnight);
     }
 
     /* VIRTUAL */
@@ -338,8 +337,7 @@ abstract contract TenorRouter is ITenorRouter {
         takeUnits = UtilsLib.min(takeUnits, cap);
         if (takeUnits == 0) return 0;
 
-        takeUnits =
-            UtilsLib.min(takeUnits, TakeMathLib.getOfferRemaining(IMidnight(_MORPHO_MIDNIGHT), action.offer, marketId));
+        takeUnits = UtilsLib.min(takeUnits, TakeMathLib.getOfferRemaining(_MORPHO_MIDNIGHT, action.offer, marketId));
 
         if (takeUnits == 0 || action.clamp == address(0)) return takeUnits;
         return UtilsLib.min(takeUnits, ITakeClamp(action.clamp).maxUnits(action.offer, action.clampData));
