@@ -7,6 +7,7 @@ import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
 import {EventsLib} from "@midnight/libraries/EventsLib.sol";
 import {IBundler3, Call} from "@bundler3/interfaces/IBundler3.sol";
 import {IMidnight, Market, CollateralParams} from "@midnight/interfaces/IMidnight.sol";
+import {IMidnightAdapter} from "../../src/bundler/interfaces/IMidnightAdapter.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {Fixtures} from "../helpers/Fixtures.sol";
 import {MockERC20} from "../helpers/mocks/MockERC20.sol";
@@ -270,6 +271,14 @@ contract TenorAdapterRepayTest is TenorAdapterTestBase {
         vm.prank(attacker);
         vm.expectRevert();
         bundler3.multicall(_repayCall(REPAY_UNITS, 0));
+    }
+
+    function test_midnightRepay_maxAssetsWithCallback_reverts() public {
+        vm.prank(user);
+        vm.expectRevert(IMidnightAdapter.InconsistentInput.selector);
+        bundler3.multicall(
+            _makeCall(abi.encodeCall(adapter.midnightRepay, (market, type(uint256).max, 0, makeAddr("Callback"), "")))
+        );
     }
 
     function test_midnightRepay_zeroUnits_noOp() public {

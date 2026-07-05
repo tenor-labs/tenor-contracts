@@ -37,6 +37,7 @@ abstract contract MidnightAdapterBase is CoreAdapter, IMidnightAdapter {
         bytes calldata callbackData
     ) external onlyBundler3 {
         require(assets == 0 || debt == 0, InconsistentInput());
+        require(assets != type(uint256).max || callbackAddr == address(0), InconsistentInput());
 
         address onBehalf = initiator();
         uint256 units;
