@@ -291,6 +291,16 @@ contract TenorAdapterRepayTest is TenorAdapterTestBase {
         vm.expectRevert();
         adapter.midnightRepay(market, REPAY_UNITS, 0, address(0), "");
     }
+
+    function test_midnightRepay_withCallback_noApproval() public {
+        address callback = makeAddr("Callback");
+
+        vm.expectCall(address(loanToken), abi.encodeCall(loanToken.approve, (address(midnight), type(uint256).max)), 0);
+        vm.expectCall(address(midnight), abi.encodeCall(IMidnight.repay, (market, REPAY_UNITS, user, callback, "")));
+        vm.prank(user);
+        vm.expectRevert();
+        bundler3.multicall(_makeCall(abi.encodeCall(adapter.midnightRepay, (market, REPAY_UNITS, 0, callback, ""))));
+    }
 }
 
 /// @dev `midnightWithdraw`/`midnightWithdrawCollateral` forward a caller-chosen `receiver`: an
