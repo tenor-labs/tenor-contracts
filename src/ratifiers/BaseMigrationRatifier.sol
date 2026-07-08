@@ -42,6 +42,9 @@ uint256 constant MAX_FEE_RATE_FIXED_TO_VARIABLE = 0;
 /// @dev Renewals do not check source health: a liquidatable source position can still be renewed.
 /// @dev Fee config (`setFeeConfig`) is owner-only and takes effect immediately, no timelock; the user's rate check runs
 /// after the fee, so it cannot weaken rate protection.
+/// @dev The rate model only produces prices at or below par, so the ratified price can never compensate the taker
+/// for the settlement fee once it exceeds the remaining fair discount to maturity, which can happen before maturity
+/// and is always the case at or after maturity for a nonzero fee.
 abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     using TenorMarketIdLib for Market;
     using MarketParamsLib for MarketParams;
