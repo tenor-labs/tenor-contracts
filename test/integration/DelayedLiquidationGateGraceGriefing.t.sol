@@ -165,7 +165,7 @@ contract Test_GraceGriefAttack is Test {
 
     function _buildBorrowerOffer() internal view returns (Offer memory o) {
         o.market = market;
-        o.buy = false; // borrower sells bonds = borrows
+        o.buy = false; // borrower sells units = borrows
         o.maker = borrower;
         o.start = block.timestamp;
         o.expiry = block.timestamp + 1 hours;

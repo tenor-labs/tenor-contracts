@@ -271,6 +271,14 @@ contract TenorAdapterRepayTest is TenorAdapterMarketTestBase {
         bundler3.multicall(_repayCall(REPAY_UNITS, 0));
     }
 
+    function test_midnightRepay_maxAssetsWithCallback_reverts() public {
+        vm.prank(user);
+        vm.expectRevert(IMidnightAdapter.InconsistentInput.selector);
+        bundler3.multicall(
+            _makeCall(abi.encodeCall(adapter.midnightRepay, (market, type(uint256).max, 0, makeAddr("Callback"), "")))
+        );
+    }
+
     function test_midnightRepay_zeroUnits_noOp() public {
         vm.prank(user);
         bundler3.multicall(_repayCall(0, 0));
@@ -280,6 +288,16 @@ contract TenorAdapterRepayTest is TenorAdapterMarketTestBase {
         vm.prank(user);
         vm.expectRevert();
         adapter.midnightRepay(market, REPAY_UNITS, 0, address(0), "");
+    }
+
+    function test_midnightRepay_withCallback_noApproval() public {
+        address callback = makeAddr("Callback");
+
+        vm.expectCall(address(loanToken), abi.encodeCall(loanToken.approve, (address(midnight), type(uint256).max)), 0);
+        vm.expectCall(address(midnight), abi.encodeCall(IMidnight.repay, (market, REPAY_UNITS, user, callback, "")));
+        vm.prank(user);
+        vm.expectRevert();
+        bundler3.multicall(_makeCall(abi.encodeCall(adapter.midnightRepay, (market, REPAY_UNITS, 0, callback, ""))));
     }
 }
 

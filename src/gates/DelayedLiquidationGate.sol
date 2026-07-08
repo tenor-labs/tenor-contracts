@@ -17,8 +17,8 @@ import {IDelayedLiquidationGate} from "./interfaces/IDelayedLiquidationGate.sol"
 /// @dev Token flows are handled through Midnight's onLiquidate callback.
 /// @dev Incompatible with markets whose collateral is gated VaultV2 shares routed through
 /// MidnightVaultExecutor: both call paths revert and the position becomes unliquidatable.
-/// @dev startGracePeriod is permissionless and callable whenever the position is unhealthy (including
-/// mid-transaction); the caller freely picks the priority liquidator, who has exclusive rights for PRIORITY_PERIOD.
+/// @dev startGracePeriod is permissionless and callable whenever the position is unhealthy, including
+/// mid-transaction; the caller freely picks the priority liquidator, who has exclusive rights for PRIORITY_PERIOD.
 /// @dev The grace timer is not reset if the borrower recovers to healthy; a position that later becomes
 /// unhealthy again inherits the old timer and may be liquidatable without a fresh grace period.
 contract DelayedLiquidationGate is IDelayedLiquidationGate, ILiquidatorGate {
@@ -29,7 +29,7 @@ contract DelayedLiquidationGate is IDelayedLiquidationGate, ILiquidatorGate {
     uint256 public immutable LIQUIDATION_PERIOD;
     uint256 public immutable PRIORITY_PERIOD;
 
-    /// @dev Maps borrower => marketId => grace period info (timestamp and priority liquidator packed in one slot).
+    /// @dev Maps borrower => marketId => grace period info: timestamp and priority liquidator packed in one slot.
     mapping(address borrower => mapping(bytes32 marketId => GracePeriodInfo)) public gracePeriodInfo;
 
     constructor(address morphoMidnight, uint256 _gracePeriod, uint256 _liquidationPeriod, uint256 _priorityPeriod) {

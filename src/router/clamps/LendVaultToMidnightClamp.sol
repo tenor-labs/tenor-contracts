@@ -12,13 +12,13 @@ import {MorphoBalancesLib} from "@morphoBlue/libraries/periphery/MorphoBalancesL
 
 /// @title LendVaultToMidnightClamp
 /// @notice Clamp that bounds takeUnits for vault to Midnight lend migrations (cadence-based).
-/// @dev Bounds units by the lender's withdrawable balance in the source vault (computation depends on VaultType).
+/// @dev Bounds units by the lender's withdrawable balance in the source vault; the computation depends on VaultType.
 /// @dev The callback redeems source vault shares for loan tokens to fund the buy.
 /// @dev feeRate in the clamp data must match the feeRate in the callback data.
 /// @dev `positionOwner` is passed in clampData; for a ratified migration offer it equals `offer.maker`.
 /// @dev Offer consumption is checked structurally by TenorRouter.
-/// @dev For VAULT_V2, liquidity is assumed always sufficient to withdraw; maxWithdraw returns 0 by design (ERC-4626
-/// compliance), so convertToAssets(balanceOf) is used as the withdrawal bound.
+/// @dev For VAULT_V2, liquidity is assumed always sufficient to withdraw; maxWithdraw returns 0 by design for ERC-4626
+/// compliance, so convertToAssets(balanceOf) is used as the withdrawal bound.
 contract LendVaultToMidnightClamp is ITakeClamp {
     using MorphoBalancesLib for IMorpho;
 
@@ -36,7 +36,7 @@ contract LendVaultToMidnightClamp is ITakeClamp {
     /// @notice The Morpho Midnight protocol contract.
     IMidnight public immutable MORPHO_MIDNIGHT;
 
-    /// @notice The Morpho Blue contract (used for TENOR_VAULT_V2 liquidity checks).
+    /// @notice The Morpho Blue contract, used for TENOR_VAULT_V2 liquidity checks.
     IMorpho public immutable MORPHO_BLUE;
 
     /// @notice Data decoded from clampData.
@@ -45,7 +45,7 @@ contract LendVaultToMidnightClamp is ITakeClamp {
         bytes32 marketId; // Target Midnight market ID
         address positionOwner; // Lender whose position is migrated (= offer.maker)
         uint256 feeRate; // Fee rate from callback data, in WAD (0 = no fee).
-        VaultType vaultType; // Vault type (determines liquidity check strategy)
+        VaultType vaultType; // Vault type; determines the liquidity check strategy
         bytes32 morphoBlueMarketId; // Used only when vaultType == TENOR_VAULT_V2; bytes32(0) otherwise
     }
 

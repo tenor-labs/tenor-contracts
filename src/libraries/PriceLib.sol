@@ -6,11 +6,11 @@ import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {WAD} from "@midnight/libraries/ConstantsLib.sol";
 
 /// @title PriceLib
-/// @notice Pure arithmetic for zero-coupon bond price computation and rate limit checking.
+/// @notice Pure arithmetic for unit price computation and rate limit checking.
 library PriceLib {
     using UtilsLib for uint256;
 
-    /// @dev Returns the zero-coupon bond price WAD^2 / (WAD + ratePerSecond * durationSeconds).
+    /// @dev Returns the unit price WAD^2 / (WAD + ratePerSecond * durationSeconds).
     /// @dev Returns WAD (par, 0% discount) when ratePerSecond == 0 or durationSeconds == 0.
     /// @dev The price lies in [0, WAD]: the buy branch (mulDivDown) can floor to 0 for very large
     /// ratePerSecond * durationSeconds, while the sell branch (mulDivUp) stays >= 1.
@@ -21,7 +21,7 @@ library PriceLib {
     /// @param isBuy True when the protected user is the buyer (lend-side), false when the seller.
     /// @param ratePerSecond The interest rate per second, in WAD (1e18 = 100% per second).
     /// @param durationSeconds The duration in seconds.
-    /// @return price The zero-coupon bond price, in WAD.
+    /// @return price The unit price (assets per unit), in WAD.
     function computePrice(bool isBuy, uint256 ratePerSecond, uint256 durationSeconds) internal pure returns (uint256) {
         uint256 denominator = WAD + ratePerSecond * durationSeconds;
         return isBuy ? WAD.mulDivDown(WAD, denominator) : WAD.mulDivUp(WAD, denominator);

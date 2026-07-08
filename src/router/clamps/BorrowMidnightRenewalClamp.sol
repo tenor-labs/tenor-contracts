@@ -13,14 +13,14 @@ import {MAX_COLLATERALS_PER_BORROWER} from "@midnight/libraries/ConstantsLib.sol
 /// @dev Bounds units by the borrower's source debt position and repayment budget.
 /// @dev Assumes the source and target markets are identical except for maturity (target maturity > source maturity):
 /// same loanToken, same collaterals (tokens, oracles, LLTVs), same rcfThreshold. This is a keeper precondition.
-/// @dev Assumes positionOwner (the borrower) has debt on the source market.
-/// @dev Source and target must be different markets (self-renewal is blocked).
+/// @dev Assumes positionOwner, the borrower, has debt on the source market.
+/// @dev Source and target must be different markets; self-renewal is blocked.
 /// @dev The offer's callback is a BorrowMidnightRenewalCallback that pulls sellerAssets, deducts the fee on interest,
 /// repays source debt, and transfers collateral pro-rata.
 /// @dev feeRate in the clamp data must match the feeRate in the callback data.
 /// @dev `positionOwner` is passed in clampData; for a ratified migration offer it equals `offer.maker`.
 /// @dev Offer consumption is checked structurally by TenorRouter.
-/// @dev Only loanToken is checked onchain; mismatched collaterals are silently skipped (left on the source market).
+/// @dev Only loanToken is checked onchain; mismatched collaterals are silently skipped and left on the source market.
 contract BorrowMidnightRenewalClamp is ITakeClamp {
     /// @notice The Morpho Midnight protocol contract.
     IMidnight public immutable MORPHO_MIDNIGHT;

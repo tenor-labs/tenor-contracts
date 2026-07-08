@@ -18,16 +18,17 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// executor are neither usable nor recoverable.
 /// @dev VaultV2 deposits can revert if a liquidity-adapter cap of the vault is reached, blocking otherwise valid
 /// deposit-and-add-collateral flows.
-/// @dev Uses the Midnight contract as authorization authority (caller must be `onBehalf` or authorized by it on
-/// Midnight).
+/// @dev Uses the Midnight contract as authorization authority: the caller must be `onBehalf` or authorized by it on
+/// Midnight.
 ///
 /// VAULT SAFETY REQUIREMENTS
 /// @dev List of assumptions on the vault that guarantee this executor behaves as expected:
 /// - `deposit`, `mint` and `redeem` move exactly the assets/shares they report. The executor pulls
 /// `previewMint(shares)` on the mint path, which equals what `mint` consumes in the same transaction, so no dust is
 /// left behind.
-/// - It must be resistant to atomic share-price manipulation (donation/sandwich): no per-share-price/slippage bound is
-/// enforced by the executor, so deposit/mint/redeem settle at whatever rate the vault reports at execution time.
+/// - It must be resistant to atomic share-price manipulation (e.g. via donation): no per-share-price/slippage bound is
+/// enforced by the executor, so deposit/mint/redeem settle at whatever exchange rate the vault reports at execution
+/// time.
 /// - It must not re-enter Midnight nor this executor on `deposit`, `mint`, `previewMint` nor `redeem`.
 ///
 /// LIQUIDATION SELF-FUNDING LIMITATIONS
@@ -140,11 +141,8 @@ contract MidnightVaultExecutor is IMidnightVaultExecutor, IRepayCallback, ILiqui
 
     /* INTERNAL */
 
-    /// @dev Shared by `withdrawCollateralAndRedeem` and `onRepay`: derives the vault from the market's collateral
-    /// and checks its asset matches the loan token, withdraws `shares` of vault-share collateral from `onBehalf` on
-    /// Midnight, and redeems them to `redeemReceiver`.
-    /// @dev `withdrawCollateralAndRedeem` redeems to the external receiver;
-    /// `onRepay` redeems to the executor, which then funds the repay.
+    /// @dev Derives the vault from the market's collateral and checks its asset matches the loan token, withdraws
+    /// `shares` of vault-share collateral from `onBehalf` on Midnight, and redeems them to `redeemReceiver`.
     function _withdrawAndRedeem(
         Market memory market,
         uint256 collateralIndex,

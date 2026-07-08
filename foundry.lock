@@ -5,12 +5,6 @@
   "lib/forge-std": {
     "rev": "620536fa5277db4e3fd46772d5cbc1ea0696fb43"
   },
-  "lib/metamorpho": {
-    "tag": {
-      "name": "v1.0.0",
-      "rev": "f5faa9c21b1396c291b471a6a5ad9407d23486a9"
-    }
-  },
   "lib/midnight": {
     "rev": "e6f2bf28400d8215a533f713081a6f68ca121941"
   },

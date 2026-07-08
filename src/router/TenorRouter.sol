@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Les entreprises shippooor inc.
 pragma solidity 0.8.34;
 
-import {Midnight} from "@midnight/Midnight.sol";
 import {IMidnight, Offer, Market} from "@midnight/interfaces/IMidnight.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
@@ -16,17 +15,16 @@ import {ITenorRouter} from "./interfaces/ITenorRouter.sol";
 import {ICallbackFeeAdjuster} from "./interfaces/ICallbackFeeAdjuster.sol";
 
 /// @notice Dimension `maxFill`/`minFill` apply to.
-/// @dev `ASSETS` resolves to the batch's side (buyer or seller); capping the counterparty's flow is unrepresentable.
+/// @dev `ASSETS` resolves to the batch's side (buyer or seller).
 enum FillAxis {
     ASSETS,
     UNITS
 }
 
 /// @notice Parameters for batch execution.
-/// @dev `maxFill`/`minFill` = `type(uint256).max` is a renewal/close-out sentinel resolved against onchain state by
-/// `TenorRouterAdapterBase._resolveSentinel`, not the ERC-20 "unlimited" idiom.
-/// @dev Sentinel resolution reverts `SentinelResolvedToZero` if it yields 0; opening flows must pass explicit bounds.
-/// @dev `fillAxis == ASSETS` caps and the slippage denominator both pin to the batch's side (see `_initiatorIsBuyer`).
+/// @dev `maxFill`/`minFill` = `type(uint256).max` is a renewal/close-out sentinel resolved against onchain state,
+/// not the ERC-20 "unlimited" idiom; resolution reverts if it yields 0, so opening flows must pass explicit bounds.
+/// @dev `fillAxis == ASSETS` caps and the slippage denominator both pin to the batch's side; see `_initiatorIsBuyer`.
 /// @dev `_execute` enforces that all actions share the same market (`InconsistentMarket`) and the same side
 /// (`InconsistentSide`). The initiator is always the Midnight taker.
 struct ExecuteParams {
@@ -42,7 +40,7 @@ struct ExecuteParams {
 
 /// @notice The Midnight take parameters carried by each `Action`.
 /// @dev If `takerCallback` reenters Bundler3 (e.g. `TenorAdapter`), at most one such action may execute per
-/// top-level `Bundler3.multicall` `Call` entry (see `MidnightAdapterBase._midnightCallback`).
+/// top-level `Bundler3.multicall` `Call` entry; see `MidnightAdapterBase._midnightCallback`.
 /// @dev With `Action.allowRevert = true`, follow-up reentrant actions in the same batch silently no-op with
 /// `IncorrectReenterHash` instead of failing the call.
 struct MidnightTakeData {
@@ -59,9 +57,8 @@ struct MidnightTakeData {
 /// @dev `allowRevert` does not bound the caught call's gas: a reverting action can consume most of the batch's
 /// remaining gas before being caught.
 /// @dev `feeAdjuster`/`feeAdjusterData` are trusted to mirror the callback's actual fee (formula and rate); the
-/// router does not cross-check them against callbacks that may charge fees to the initiator. Misconfigured fee
-/// adjustment params may skew fill/slippage accounting for the whole batch. `feeAdjuster` may safely be set to
-/// `address(0)` when callbacks don't charge fees to initiator.
+/// router does not cross-check them. Misconfigured fee adjustment params may skew fill/slippage accounting for the
+/// whole batch. `feeAdjuster` may be `address(0)` when callbacks charge no initiator fees.
 struct Action {
     MidnightTakeData take;
     bool allowRevert;
@@ -73,28 +70,22 @@ struct Action {
 }
 
 /// @title TenorRouter
-/// @notice Executes batches of Midnight takes with the initiator as the Midnight taker, with per-batch fill, price,
-/// continuous-fee and crossing protections.
+/// @notice Executes batches of Midnight takes with per-batch fill, price, continuous-fee and crossing protections.
 /// @dev The initiator (`msg.sender` here, `Bundler3.initiator()` in the adapter) drives the batch and is always the
 /// Midnight taker; `offer.maker` is the counterparty providing liquidity for a given action.
-/// @dev Self-take is not explicitly rejected: `offer.maker == initiator` makes maker and taker the same account, so
-/// the dispatch to Midnight reverts implicitly.
-/// @dev Migrations on behalf of a user run by the user (as offer maker) authorizing a migration ratifier on Midnight,
-/// whose `isRatified` the take then runs. This router is unaware of migrations; it only takes.
+/// @dev Self-take is not explicitly rejected: `offer.maker == initiator` reverts implicitly.
 /// @dev Without a feeAdjuster, maxFill, minFill and the price band bound raw Midnight amounts, not net-taker amounts.
-/// @dev Takes triggered by nested callbacks within an action are invisible to the batch's maxFill/minFill accounting
-/// and BatchExecuted totals.
-/// @dev Maker-supplied policies, resolvers and clamps are untrusted code; keepers must treat quoting and dispatch as
-/// potentially reverting or gas-expensive.
+/// @dev Takes from nested callbacks are invisible to the batch's maxFill/minFill accounting and BatchExecuted totals.
+/// @dev Maker-supplied policies, resolvers and clamps are untrusted code; quoting and dispatch may revert or burn gas.
 abstract contract TenorRouter is ITenorRouter {
     /* IMMUTABLES */
 
-    Midnight internal immutable _MORPHO_MIDNIGHT;
+    IMidnight internal immutable _MORPHO_MIDNIGHT;
 
     /* CONSTRUCTOR */
 
     constructor(address morphoMidnight) {
-        _MORPHO_MIDNIGHT = Midnight(morphoMidnight);
+        _MORPHO_MIDNIGHT = IMidnight(morphoMidnight);
     }
 
     /* VIRTUAL */
@@ -128,10 +119,10 @@ abstract contract TenorRouter is ITenorRouter {
     /// initiator-worsening direction, across all fills.
     /// @dev `rawTotals` holds the amounts Midnight actually matched onchain (pre-adjustment), accumulated
     /// unconditionally. The initiator is always the taker here, so these are exclusively its taker-side fills,
-    /// disjoint from its maker-side fills (resting offers filled during the batch, e.g. via reentrancy) that Midnight
-    /// already counts under `consumed[initiator][group]`.
+    /// disjoint from its maker-side fills that Midnight already counts under `consumed[initiator][group]`: resting
+    /// offers filled during the batch, e.g. via reentrancy.
     /// @dev To reconcile the initiator's consumption, add `rawTotals` to `consumed[initiator][group]`: the two never
-    /// overlap, so the sum does not double-count. Reconcile against `rawTotals`, not the fee-adjusted `totals`.
+    /// overlap, so the sum does not double-count.
     function _execute(ExecuteParams calldata params, Action[] calldata actions, uint256 maxFill, uint256 minFill)
         internal
         returns (uint256[3] memory totals, uint256[3] memory rawTotals)
@@ -346,8 +337,7 @@ abstract contract TenorRouter is ITenorRouter {
         takeUnits = UtilsLib.min(takeUnits, cap);
         if (takeUnits == 0) return 0;
 
-        takeUnits =
-            UtilsLib.min(takeUnits, TakeMathLib.getOfferRemaining(IMidnight(_MORPHO_MIDNIGHT), action.offer, marketId));
+        takeUnits = UtilsLib.min(takeUnits, TakeMathLib.getOfferRemaining(_MORPHO_MIDNIGHT, action.offer, marketId));
 
         if (takeUnits == 0 || action.clamp == address(0)) return takeUnits;
         return UtilsLib.min(takeUnits, ITakeClamp(action.clamp).maxUnits(action.offer, action.clampData));

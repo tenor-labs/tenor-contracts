@@ -11,16 +11,16 @@ import {ITenorRouter} from "../router/interfaces/ITenorRouter.sol";
 import {ITenorRouterAdapter} from "./interfaces/ITenorRouterAdapter.sol";
 
 /// @title TenorRouterAdapterBase
-/// @notice Bundler3 adapter for TenorRouter batch execution. Overrides `_initiator` to return
-///         `Bundler3.initiator()` and adds sentinel resolution + `executeAndConsume`.
+/// @notice Bundler3 adapter for TenorRouter batch execution.
+/// @dev `_initiator` returns `Bundler3.initiator()`: the bundle initiator is the Midnight taker.
 abstract contract TenorRouterAdapterBase is TenorRouter, CoreAdapter, ITenorRouterAdapter {
     function _initiator() internal view override returns (address) {
         return initiator();
     }
 
     /// @inheritdoc ITenorRouter
-    /// @dev Adapter override: callable only by Bundler3, and resolves `type(uint256).max`
-    ///      `maxFill`/`minFill` sentinels against onchain state before executing.
+    /// @dev Adapter override: callable only by Bundler3, and resolves `type(uint256).max` `maxFill`/`minFill`
+    /// sentinels against onchain state before executing.
     function execute(ExecuteParams calldata params, Action[] calldata actions)
         external
         override(TenorRouter, ITenorRouter)
@@ -71,7 +71,8 @@ abstract contract TenorRouterAdapterBase is TenorRouter, CoreAdapter, ITenorRout
     }
 
     /// @dev `FILL_UNITS` resolves to the initiator's debt (buyer-side) or credit (seller-side); side-aware so the
-    /// resolved cap matches the existing position the action would close, preventing overshoot.
+    /// resolved cap matches the position the batch would close. Sentinels are resolved once at batch start; state
+    /// changes occurring mid-execution are not accounted for.
     /// `FILL_BUYER_ASSETS` resolves to `loanToken.balanceOf(adapter)`.
     /// `FILL_SELLER_ASSETS` is unsupported; it would cap borrower output by the adapter loan balance.
     function _resolveSentinel(uint8 fillIndex, address initiator, Action[] calldata actions)

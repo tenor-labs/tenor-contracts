@@ -1115,7 +1115,7 @@ contract CallbackFeeAdjusterTest is Test {
         feeRate = bound(feeRate, 1, MAX_PERCENTAGE_FEE_RATE);
         remaining = bound(remaining, 1, 1e36);
         uint256 price = TickLib.tickToPrice(tick);
-        // Bond price + settlementFee ≤ WAD is Midnight's invariant on the buyer side.
+        // Unit price + settlementFee ≤ WAD is Midnight's invariant on the buyer side.
         settlementFee = bound(settlementFee, 0, WAD - price);
         _stubSettlementFee(settlementFee);
 
@@ -1278,7 +1278,7 @@ contract CallbackFeeAdjusterTest is Test {
         uint256 units = adjuster.beforeDispatch(_makeOffer(tick, false), 0, remaining, _encodePercentage(feeRate));
         uint256 B = TickLib.tickToPrice(tick) + settlementFee;
         if (B == 0) {
-            // Free bonds (buyer pays 0/unit): take all capacity, not the asset-denominated budget value.
+            // Free units (buyer pays 0/unit): take all capacity, not the asset-denominated budget value.
             assertEq(units, type(uint128).max, "B==0 => uint128.max (take all)");
             return;
         }
@@ -1352,7 +1352,7 @@ contract CallbackFeeAdjusterTest is Test {
     }
 
     /// @notice INTEREST + sell offer + FILL_BUYER_ASSETS, offerPrice == 0 (tick 0/1) and zero
-    ///         settlementFee ⇒ netBuyerPrice == 0 (free bonds) ⇒ cap is "take all capacity".
+    ///         settlementFee ⇒ netBuyerPrice == 0 (free units) ⇒ cap is "take all capacity".
     function test_beforeDispatch_interest_sellOffer_buyerAssets_zeroNetPrice_returnsMax() public {
         _stubSettlementFeeZero();
         assertEq(TickLib.tickToPrice(0), 0, "precondition: tick 0 prices at 0");
@@ -1499,7 +1499,7 @@ contract CallbackFeeAdjusterTest is Test {
         assertGt(withFee, withoutFee, "taker-seller settlementFee lowers receipt => more units fit");
     }
 
-    /// @notice PERCENTAGE: SELL maker-seller with offerPrice == 0 (free bonds) ⇒ budget not binding ⇒ take all.
+    /// @notice PERCENTAGE: SELL maker-seller with offerPrice == 0 (free units) ⇒ budget not binding ⇒ take all.
     function test_beforeDispatch_percentage_sellOffer_sellerAssets_zeroPrice_returnsMax() public {
         _stubSettlementFeeZero();
         assertEq(TickLib.tickToPrice(0), 0, "precondition: tick 0 prices at 0");

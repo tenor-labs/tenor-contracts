@@ -26,7 +26,7 @@ import {TenorMarketIdLib} from "../libraries/TenorMarketIdLib.sol";
 uint256 constant MAX_FEE_RATE = 0.5e18;
 
 /// @dev Maximum fee rate for fixed-to-variable exits (Midnight to Blue and Midnight to Vault); fees permanently
-/// disabled (constant 0).
+/// disabled since the constant is 0.
 uint256 constant MAX_FEE_RATE_FIXED_TO_VARIABLE = 0;
 
 /// @title BaseMigrationRatifier
@@ -42,6 +42,9 @@ uint256 constant MAX_FEE_RATE_FIXED_TO_VARIABLE = 0;
 /// @dev Renewals do not check source health: a liquidatable source position can still be renewed.
 /// @dev Fee config (`setFeeConfig`) is owner-only and takes effect immediately, no timelock; the user's rate check runs
 /// after the fee, so it cannot weaken rate protection.
+/// @dev The rate model only produces prices at or below par, so the ratified price can never compensate the taker
+/// for the settlement fee once it exceeds the remaining fair discount to maturity, which can happen before maturity
+/// and is always the case at or after maturity for a nonzero fee.
 abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     using TenorMarketIdLib for Market;
     using MarketParamsLib for MarketParams;
@@ -181,6 +184,8 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     /// @dev Decodes `callbackData` for the given callback and returns the source and target
     /// market context together with the callback's fee parameters.
     /// @dev A zero maturity marks the non-Midnight side of the migration (Blue or vault).
+    /// @dev Both renewal callbacks decode as `IBorrowMidnightRenewalCallback.CallbackData`; the borrow and lend
+    /// renewal structs must stay identical.
     function _extractCallbackContext(address callback, bytes memory callbackData, Offer memory offer)
         internal
         view
@@ -269,6 +274,7 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
         if (sourceMaturity == 0) {
             if (params.renewalCadence == address(0)) revert InvalidRenewalParams();
             renewalPeriodStart = IRenewalCadence(params.renewalCadence).cadencePeriodStart(block.timestamp);
+            // Invariant check: a compliant cadence returns a period start <= the queried timestamp.
             if (renewalPeriodStart > block.timestamp) revert InvalidRenewalParams();
         } else {
             if (params.renewalWindow > sourceMaturity) revert InvalidRenewalParams();
@@ -297,8 +303,8 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     }
 
     /// @dev Checks the offer price against the policy rate and user's rate limit, net of settlement and protocol fees.
-    /// The settlement fee is borne by the taker, so it is netted only when `offer.maker != user` (none under
-    /// make-on-behalf). The check is continuous, while Midnight's integer settlement rounds against the taker.
+    /// The settlement fee is borne by the taker, so it is netted only when `offer.maker != user`; there is none under
+    /// make-on-behalf. The check is continuous, while Midnight's integer settlement rounds against the taker.
     function _ratifyRate(
         address user,
         address taker,
@@ -346,9 +352,9 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     ///   fixed-rate position; `targetMaturity > block.timestamp` is already enforced in `_validateTargetMaturity`.
     /// - Exits (Midnight to Blue or vault): `sourceMaturity - block.timestamp`. The remaining fixed term given up
     ///   (zero at or after maturity).
-    /// @dev When source funds become withdrawable before sourceMaturity (e.g. early repayments), a renewal relocks
-    /// them until targetMaturity but only pays from sourceMaturity, so the lender's realized rate can fall below
-    /// the ratified floor.
+    /// @dev When source funds become withdrawable before sourceMaturity (e.g. early repayments), a renewal relocks them
+    /// until targetMaturity but only pays from sourceMaturity, leaving the lender's realized rate short of the ratified
+    /// floor.
     function _computeDuration(address callback, uint256 sourceMaturity, uint256 targetMaturity)
         internal
         view
@@ -372,12 +378,15 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
             || callback == LEND_MIDNIGHT_RENEWAL_CALLBACK;
     }
 
-    /// @dev Returns the per-WAD effective face value at maturity after Midnight's continuous fee on
-    /// Midnight-target lend flows, and WAD otherwise.
+    /// @dev Returns the fraction of each unit's face value (in WAD) that the lender keeps at maturity after
+    /// Midnight's continuous fee, for Midnight-target lend flows; WAD otherwise. Used by the rate check to price the
+    /// fee into the ratified rate.
     /// @dev Matches Midnight's fee model: the lifetime fee is fixed at take time as continuousFee * timeToMaturity
     /// and amortized linearly to maturity, so the lender nets units * (WAD - continuousFee * timeToMaturity) / WAD.
-    /// @dev Worst-case assumption: the entire fill is treated as newly subject to the continuous fee (no netting
-    /// against pre-existing debt); the realized rate with existing debt is strictly better than ratified.
+    /// @dev The fee is measured on the entire fill, though Midnight only charges it on the credit increase net of
+    /// the buyer's pre-existing debt (zeroFloorSub(units, debt)). When the buyer has pre-existing debt the fee is
+    /// therefore overstated: an offer that passes ratification realizes a rate at least as good as ratified, and an
+    /// offer may be rejected that an exact fee computation would have accepted.
     function _effectiveUnitsPerWad(address callback, bytes32 marketId, Offer memory offer)
         internal
         view

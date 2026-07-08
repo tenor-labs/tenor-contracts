@@ -19,7 +19,7 @@ The codebase is organized into **standalone contracts** that interact directly w
                        └──────────────┬──────────────┘
                                       │ batches midnight.take()
                                       │ (initiator = taker)
-               isRatified(offer)      ▼   invokes offer.callback
+          isRatified(offer, …, taker)  ▼   invokes offer.callback
   ┌──────────────────┐   ┌─────────────────────────┐   ┌─────────────────────────────────────┐
   │ MigrationRatifier│◄──│     Morpho Midnight     │──►│              Callbacks              │
   │ validates user   │   └─────────────────────────┘   │  Borrow  {BlueToMidnight,           │
@@ -91,7 +91,7 @@ Pass-through helper that bundles deposit/withdraw/liquidation flows for ERC-4626
 
 ## Callbacks
 
-Stateless, immutable contracts invoked by Morpho Midnight during `take()`. Each callback encodes a specific state transition.
+Stateless, immutable contracts invoked by Morpho Midnight during `take()`. Each callback encodes a specific state transition. Callbacks can be used maker-side (set on the offer) or taker-side (passed as `takerCallback` when taking).
 
 ### Renewal & Migration Callbacks
 
@@ -138,7 +138,7 @@ The **Ratifier owner** configures fee rates via `setFeeConfig(callback, marketId
 
 ### Migration Ratifier Validations
 
-When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.maker][offer.ratifier]` and calls the ratifier's `isRatified(offer, ratifierData)`, which validates:
+When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.maker][offer.ratifier]` and calls the ratifier's `isRatified(offer, ratifierData, taker)` (forwarding the `taker` for counterparty-aware rate pricing), which validates:
 
 1. **Params validity** — `interestRatePolicy != address(0)`, `minDuration > 0`, `maxDuration >= minDuration`
 2. **Callback data consistency** — Source/target market IDs in callback data match the take's source/target market IDs
@@ -160,7 +160,7 @@ When a counterparty fills the user's offer, Midnight checks `isAuthorized[offer.
 
 ┌──────────────┐  take(userOffer, …)  ┌──────────────┐  checks isAuthorized[maker][ratifier]
 │ Counterparty │─────────────────────→│ Morpho       │──┐
-└──────────────┘                      │ Midnight     │  │ isRatified(offer, ratifierData)
+└──────────────┘                      │ Midnight     │  │ isRatified(offer, ratifierData, taker)
                                       └───────┬──────┘  ▼
                                               │     ┌──────────┐  validates fees, window,
                                               │     │ Ratifier │  maturity, rate
@@ -210,7 +210,7 @@ Stateless, view-only contracts that cap `takeUnits` before dispatch. There is on
 
 `TenorAdapter` extends Bundler3's adapter pattern to expose all Tenor operations as multicallable actions. Composed of:
 
-- **`MidnightAdapterBase`** - Raw Morpho Midnight operations (take, repay, supply/withdraw collateral, flash loans)
+- **`MidnightAdapterBase`** - Raw Morpho Midnight operations (repay, supply/withdraw collateral, flash loans)
 - **`MigrationRatifierAdapterBase`** - Ratifier param operations (`migrationSetParams`, `migrationClearParams`). Pins the ratifier as an immutable at deploy time.
 - **`TenorRouterAdapterBase`** - Batch fill execution via TenorRouter, with sentinel value resolution for onchain balance lookups
 
@@ -244,6 +244,10 @@ src/
 
 ---
 
+## Token Assumptions
+
+Tenor supports the same token set as Morpho Midnight: standard ERC-20s only. Tokens with transfer fees, rebasing balances, or transfer hooks are unsupported, and stablecoin-denominated markets assume the token holds its peg.
+
 ## Audit Scope
 
 The following were **outside the formal scope** of the security audits:
@@ -265,7 +269,10 @@ The following were **outside the formal scope** of the security audits:
 
 ## Build
 
+CI uses Foundry `v1.7.1` (pinned in [`ci.yml`](.github/workflows/ci.yml)); install the same version locally to match, as `forge fmt` output differs between versions:
+
 ```bash
+foundryup --install v1.7.1
 forge build
 ```
 

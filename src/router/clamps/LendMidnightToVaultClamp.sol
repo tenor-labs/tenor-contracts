@@ -15,7 +15,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// @dev Bounds units by the lender's withdrawable position and the target vault's deposit capacity.
 /// @dev The callback withdraws from the source Midnight market and deposits into the target vault.
 /// @dev Assumes positionOwner has credit (a lender position) on the source market with sufficient withdrawable
-/// liquidity available (works for both pre- and post-maturity positions).
+/// liquidity available; works for both pre- and post-maturity positions.
 /// @dev `positionOwner` is passed in clampData; for a ratified migration offer it equals `offer.maker`.
 /// @dev Offer consumption is checked structurally by TenorRouter.
 contract LendMidnightToVaultClamp is ITakeClamp {
@@ -37,7 +37,7 @@ contract LendMidnightToVaultClamp is ITakeClamp {
         bytes32 sourceMarketId; // Source Midnight market ID
         address targetVault; // Target ERC-4626 vault
         address positionOwner; // Lender whose position is migrated (= offer.maker)
-        VaultType vaultType; // Vault type (determines deposit capacity check strategy)
+        VaultType vaultType; // Vault type; determines the deposit capacity check strategy
     }
 
     constructor(IMidnight morphoMidnight) {
@@ -77,7 +77,7 @@ contract LendMidnightToVaultClamp is ITakeClamp {
         uint256 maxUnitsFromVault =
             TakeMathLib.assetsToSellerUnits(MORPHO_MIDNIGHT, data.sourceMarketId, offer, maxAssets);
 
-        // Cap by actual source credit (asset-to-unit conversion can overshoot at low prices).
+        // Cap by actual source credit; asset-to-unit conversion can overshoot at low prices.
         maxUnits = UtilsLib.min(maxUnitsFromVault, userCredit);
 
         // reduceOnly is already implicitly capped by userCredit above, but made explicit for safety.

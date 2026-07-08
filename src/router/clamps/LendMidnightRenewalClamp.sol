@@ -14,8 +14,8 @@ import {WAD} from "@midnight/libraries/ConstantsLib.sol";
 /// @dev Bounds units by the lender's source withdrawable position and withdrawal budget.
 /// @dev Assumes the source and target markets are identical except for maturity (target maturity > source maturity):
 /// same loanToken, same collaterals (tokens, oracles, LLTVs), same rcfThreshold.
-/// @dev Assumes positionOwner (the lender) has credit on the source market.
-/// @dev Source and target must be different markets (self-renewal is blocked).
+/// @dev Assumes positionOwner, the lender, has credit on the source market.
+/// @dev Source and target must be different markets; self-renewal is blocked.
 /// @dev The offer's callback is a LendMidnightRenewalCallback that withdraws buyerAssets + fee from the source market.
 /// @dev feeRate in the clamp data must match the feeRate in the callback data.
 /// @dev `positionOwner` is passed in clampData; for a ratified migration offer it equals `offer.maker`.
