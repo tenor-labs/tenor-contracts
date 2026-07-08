@@ -91,7 +91,7 @@ Pass-through helper that bundles deposit/withdraw/liquidation flows for ERC-4626
 
 ## Callbacks
 
-Stateless, immutable contracts invoked by Morpho Midnight during `take()`. Each callback encodes a specific state transition.
+Stateless, immutable contracts invoked by Morpho Midnight during `take()`. Each callback encodes a specific state transition. Callbacks can be used maker-side (set on the offer) or taker-side (passed as `takerCallback` when taking).
 
 ### Renewal & Migration Callbacks
 
@@ -243,6 +243,10 @@ src/
 ```
 
 ---
+
+## Token Assumptions
+
+Tenor supports the same token set as Morpho Midnight: standard ERC-20s only. Tokens with transfer fees, rebasing balances, or transfer hooks are unsupported, and stablecoin-denominated markets assume the token holds its peg.
 
 ## Audit Scope
 

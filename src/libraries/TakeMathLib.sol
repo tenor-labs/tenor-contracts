@@ -11,8 +11,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title TakeMathLib
 /// @notice Shared unit/price math for sizing Midnight `take`s.
-/// @dev Sizers never revert: degenerate or non-binding constraints (zero price, overflow)
-///      saturate to `uint128.max`; Midnight enforces take validity at take time.
+/// @dev Sizers never revert for valid offers and uint128-scale budgets: degenerate or non-binding constraints
+///      (zero price, overflow) saturate to `uint128.max`; inputs outside that domain can still overflow.
+///      Midnight enforces take validity at take time.
 library TakeMathLib {
     using UtilsLib for uint256;
 
