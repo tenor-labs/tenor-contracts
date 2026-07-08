@@ -71,7 +71,8 @@ abstract contract TenorRouterAdapterBase is TenorRouter, CoreAdapter, ITenorRout
     }
 
     /// @dev `FILL_UNITS` resolves to the initiator's debt (buyer-side) or credit (seller-side); side-aware so the
-    /// resolved cap matches the existing position the action would close, preventing overshoot.
+    /// resolved cap matches the position the batch would close. Sentinels are resolved once at batch start; state
+    /// changes occurring mid-execution are not accounted for.
     /// `FILL_BUYER_ASSETS` resolves to `loanToken.balanceOf(adapter)`.
     /// `FILL_SELLER_ASSETS` is unsupported; it would cap borrower output by the adapter loan balance.
     function _resolveSentinel(uint8 fillIndex, address initiator, Action[] calldata actions)
