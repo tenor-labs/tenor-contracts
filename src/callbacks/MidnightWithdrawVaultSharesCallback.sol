@@ -23,7 +23,7 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// - It must have immediate exit liquidity for `buyerAssets`, otherwise `withdraw` reverts and the fill fails.
 /// - Its share price must not move adversely between offer creation and fill: the withdrawal settles at whatever
 /// exchange rate the vault reports at execution time, with no maximum-shares bound. The vault must be resistant to
-/// atomic share-price manipulation (e.g. sandwiched via donation).
+/// atomic share-price manipulation (e.g. via donation).
 /// - Its shares should carry high decimals (e.g. 18 via a virtual-shares offset) so per-fill rounding is negligible;
 /// shares that match a low-decimal underlying let dust-sized fills socialize per-fill rounding loss to other depositors
 /// over many takes (`takeUnits` has no minimum).

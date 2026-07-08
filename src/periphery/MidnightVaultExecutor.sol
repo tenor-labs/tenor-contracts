@@ -26,7 +26,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// - `deposit`, `mint` and `redeem` move exactly the assets/shares they report. The executor pulls
 /// `previewMint(shares)` on the mint path, which equals what `mint` consumes in the same transaction, so no dust is
 /// left behind.
-/// - It must be resistant to atomic share-price manipulation (donation/sandwich): no per-share-price/slippage bound is
+/// - It must be resistant to atomic share-price manipulation (e.g. via donation): no per-share-price/slippage bound is
 /// enforced by the executor, so deposit/mint/redeem settle at whatever exchange rate the vault reports at execution
 /// time.
 /// - It must not re-enter Midnight nor this executor on `deposit`, `mint`, `previewMint` nor `redeem`.

@@ -31,7 +31,7 @@ import {SafeTransferLib} from "@midnight/libraries/SafeTransferLib.sol";
 /// non-compliant vault that under-reports supplies less collateral than it minted and strands the remainder here.
 /// - Its share price must not move adversely between offer creation and fill: the deposit accepts whatever exchange
 /// rate the vault reports, with no minimum-shares bound. The vault must be resistant to atomic share-price
-/// manipulation (e.g. sandwiched via donation).
+/// manipulation (e.g. via donation).
 /// - Its shares should carry high decimals (e.g. 18 via a virtual-shares offset) so per-fill rounding is negligible;
 /// shares that match a low-decimal underlying let dust-sized fills socialize per-fill rounding loss to other depositors
 /// over many takes (`takeUnits` has no minimum).
