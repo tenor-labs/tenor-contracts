@@ -184,6 +184,8 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
     /// @dev Decodes `callbackData` for the given callback and returns the source and target
     /// market context together with the callback's fee parameters.
     /// @dev A zero maturity marks the non-Midnight side of the migration (Blue or vault).
+    /// @dev Both renewal callbacks decode as `IBorrowMidnightRenewalCallback.CallbackData`; the borrow and lend
+    /// renewal structs must stay identical.
     function _extractCallbackContext(address callback, bytes memory callbackData, Offer memory offer)
         internal
         view
@@ -272,6 +274,7 @@ abstract contract BaseMigrationRatifier is Ownable2Step, IMigrationRatifier {
         if (sourceMaturity == 0) {
             if (params.renewalCadence == address(0)) revert InvalidRenewalParams();
             renewalPeriodStart = IRenewalCadence(params.renewalCadence).cadencePeriodStart(block.timestamp);
+            // Invariant check: a compliant cadence returns a period start <= the queried timestamp.
             if (renewalPeriodStart > block.timestamp) revert InvalidRenewalParams();
         } else {
             if (params.renewalWindow > sourceMaturity) revert InvalidRenewalParams();

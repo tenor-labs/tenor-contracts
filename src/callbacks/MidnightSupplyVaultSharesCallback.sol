@@ -20,16 +20,18 @@ import {SafeTransferLib} from "@midnight/libraries/SafeTransferLib.sol";
 /// (collateral supply).
 /// @dev The vault must be listed in the market's collaterals.
 /// @dev Any balance left on this contract is forfeited.
+/// @dev Applies no maxLtv or account-health bound: intended specifically for borrowing the vault's underlying against
+/// its shares, and the same additionalDepositPercent can yield different account health as prices or the collateral
+/// mix change.
 /// @dev On Morpho Vault-v2, deposits can revert if a liquidity-adapter cap is reached, blocking otherwise valid fills.
 ///
 /// VAULT SAFETY REQUIREMENTS
 /// @dev List of assumptions on the collateral vault that guarantee this callback behaves as expected:
-/// - `deposit(assets)` returns exactly the number of shares it mints to this callback. ERC-4626 does not require the
-/// return value to equal the shares minted, so a vault that under-reports supplies less collateral than it minted and
-/// strands the remainder here.
-/// - Its share price must not move adversely between offer creation and fill: the deposit accepts whatever rate the
-/// vault reports, with no minimum-shares bound. The vault must be resistant to atomic share-price manipulation (e.g.
-/// sandwiched via donation).
+/// - `deposit(assets)` returns exactly the number of shares it mints to this callback, as ERC-4626 requires; a
+/// non-compliant vault that under-reports supplies less collateral than it minted and strands the remainder here.
+/// - Its share price must not move adversely between offer creation and fill: the deposit accepts whatever exchange
+/// rate the vault reports, with no minimum-shares bound. The vault must be resistant to atomic share-price
+/// manipulation (e.g. via donation).
 /// - Its shares should carry high decimals (e.g. 18 via a virtual-shares offset) so per-fill rounding is negligible;
 /// shares that match a low-decimal underlying let dust-sized fills socialize per-fill rounding loss to other depositors
 /// over many takes (`takeUnits` has no minimum).
