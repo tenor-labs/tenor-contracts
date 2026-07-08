@@ -12,7 +12,7 @@ library LinearInterpolationLib {
     error EmptyCurve();
     error LengthMismatch();
 
-    /// @dev The caller must ensure knots is strictly increasing; unsorted input returns garbage or reverts.
+    /// @dev The caller must ensure knots is strictly increasing; unsorted input is undefined behavior.
     /// @dev Reverts if knots is empty or knots.length != values.length.
     /// @dev Rounds towards the left knot's value (down when the segment slopes upward, up when it slopes downward).
     /// @dev The error is < 1 and the result stays within the segment's two knot values.
