@@ -151,6 +151,52 @@ contract OracleWithValidationFactoryTest is Test {
         assertFalse(factory.isDeployedOracle(randomAddress));
     }
 
+    /* INPUT VALIDATION TESTS */
+
+    function test_DeployOracle_ZeroPrimaryOracleReverts() public {
+        vm.expectRevert(IOracleWithValidationFactory.NotAllowed.selector);
+        factory.createOracleWithValidation(
+            IOracle(address(0)), IOracle(address(validationOracle)), MAX_DEVIATION, true, owner, keccak256("salt")
+        );
+    }
+
+    function test_DeployOracle_ZeroValidationOracleReverts() public {
+        vm.expectRevert(IOracleWithValidationFactory.NotAllowed.selector);
+        factory.createOracleWithValidation(
+            IOracle(address(primaryOracle)), IOracle(address(0)), MAX_DEVIATION, true, owner, keccak256("salt")
+        );
+    }
+
+    function test_DeployOracle_IdenticalOraclesReverts() public {
+        vm.expectRevert(IOracleWithValidationFactory.NotAllowed.selector);
+        factory.createOracleWithValidation(
+            IOracle(address(primaryOracle)),
+            IOracle(address(primaryOracle)),
+            MAX_DEVIATION,
+            true,
+            owner,
+            keccak256("salt")
+        );
+    }
+
+    function test_DeployOracle_DeviationAtOrAboveWadReverts() public {
+        vm.expectRevert(IOracleWithValidationFactory.NotAllowed.selector);
+        factory.createOracleWithValidation(
+            IOracle(address(primaryOracle)), IOracle(address(validationOracle)), 1e18, true, owner, keccak256("salt")
+        );
+
+        // Boundary: 1e18 - 1 is the largest accepted deviation.
+        address oracle = factory.createOracleWithValidation(
+            IOracle(address(primaryOracle)),
+            IOracle(address(validationOracle)),
+            1e18 - 1,
+            true,
+            owner,
+            keccak256("salt")
+        );
+        assertTrue(factory.isDeployedOracle(oracle));
+    }
+
     /* INTEGRATION TESTS */
 
     function test_DeployedOracle_CanCallPrice() public {
