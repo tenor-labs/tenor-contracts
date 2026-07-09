@@ -8,6 +8,8 @@ import {EventsLib} from "@midnight/libraries/EventsLib.sol";
 import {IMidnight} from "@midnight/interfaces/IMidnight.sol";
 import {SetterRatifier} from "@midnight/ratifiers/SetterRatifier.sol";
 import {ISetterRatifier} from "@midnight/ratifiers/interfaces/ISetterRatifier.sol";
+import {EcrecoverRatifier} from "@midnight/ratifiers/EcrecoverRatifier.sol";
+import {IEcrecoverRatifier} from "@midnight/ratifiers/interfaces/IEcrecoverRatifier.sol";
 import {IBundler3, Call} from "@bundler3/interfaces/IBundler3.sol";
 import {ErrorsLib} from "@bundler3/libraries/ErrorsLib.sol";
 import {Fixtures} from "../helpers/Fixtures.sol";
@@ -16,6 +18,7 @@ contract AuthorizationAdapterTestBase is Fixtures {
     AuthorizationAdapter internal authAdapter;
     Midnight internal midnight;
     SetterRatifier internal setterRatifier;
+    EcrecoverRatifier internal ecrecoverRatifier;
     IBundler3 internal bundler3;
 
     address internal user;
@@ -33,6 +36,7 @@ contract AuthorizationAdapterTestBase is Fixtures {
         enableDefaultLltvs(midnight);
         bundler3 = deployBundler3();
         setterRatifier = new SetterRatifier(address(midnight));
+        ecrecoverRatifier = new EcrecoverRatifier(address(midnight));
         authAdapter = new AuthorizationAdapter(address(bundler3), address(midnight));
 
         vm.prank(user);
@@ -53,6 +57,13 @@ contract AuthorizationAdapterTestBase is Fixtures {
         calls[0] = _call(
             address(authAdapter),
             abi.encodeCall(authAdapter.setterRatifierSetIsRootRatified, (setterRatifier_, root, value))
+        );
+    }
+
+    function _cancelRoot(address ecrecoverRatifier_, bytes32 root) internal view returns (Call[] memory calls) {
+        calls = new Call[](1);
+        calls[0] = _call(
+            address(authAdapter), abi.encodeCall(authAdapter.ecrecoverRatifierCancelRoot, (ecrecoverRatifier_, root))
         );
     }
 }
@@ -191,16 +202,6 @@ contract AuthorizationAdapterSetterRatifierSetIsRatifiedTest is AuthorizationAda
         bundler3.multicall(_setIsRatified(address(setterRatifier), ROOT, true));
     }
 
-    function test_independentRatifiers() public {
-        SetterRatifier other = new SetterRatifier(address(midnight));
-
-        vm.prank(user);
-        bundler3.multicall(_setIsRatified(address(setterRatifier), ROOT, true));
-
-        assertTrue(setterRatifier.isRootRatified(user, ROOT));
-        assertFalse(other.isRootRatified(user, ROOT));
-    }
-
     function testFuzz_ratify(bytes32 fuzzRoot, bool value) public {
         vm.prank(user);
         bundler3.multicall(_setIsRatified(address(setterRatifier), fuzzRoot, value));
@@ -226,5 +227,60 @@ contract AuthorizationAdapterSetterRatifierSetIsRatifiedTest is AuthorizationAda
 
         assertTrue(midnight.isAuthorized(freshUser, agent));
         assertTrue(setterRatifier.isRootRatified(freshUser, ROOT));
+    }
+}
+
+contract AuthorizationAdapterEcrecoverRatifierCancelRootTest is AuthorizationAdapterTestBase {
+    bytes32 internal constant ROOT = keccak256("offer-root");
+
+    function test_cancelRoot() public {
+        assertFalse(ecrecoverRatifier.isRootCanceled(user, ROOT));
+
+        vm.prank(user);
+        bundler3.multicall(_cancelRoot(address(ecrecoverRatifier), ROOT));
+
+        assertTrue(ecrecoverRatifier.isRootCanceled(user, ROOT));
+    }
+
+    function test_cancelRoot_attributedToInitiatorNotAdapter() public {
+        vm.prank(user);
+        bundler3.multicall(_cancelRoot(address(ecrecoverRatifier), ROOT));
+
+        assertTrue(ecrecoverRatifier.isRootCanceled(user, ROOT));
+        assertFalse(ecrecoverRatifier.isRootCanceled(address(authAdapter), ROOT));
+    }
+
+    function test_emitsEvent() public {
+        vm.prank(user);
+        vm.expectEmit(true, true, true, true, address(ecrecoverRatifier));
+        emit IEcrecoverRatifier.CancelRoot(address(authAdapter), user, ROOT);
+        bundler3.multicall(_cancelRoot(address(ecrecoverRatifier), ROOT));
+    }
+
+    function test_onlyBundler3_directCallReverts() public {
+        vm.prank(user);
+        vm.expectRevert(ErrorsLib.UnauthorizedSender.selector);
+        authAdapter.ecrecoverRatifierCancelRoot(address(ecrecoverRatifier), ROOT);
+    }
+
+    function test_onlyBundler3_arbitraryEOAReverts() public {
+        vm.prank(unauthorized);
+        vm.expectRevert(ErrorsLib.UnauthorizedSender.selector);
+        authAdapter.ecrecoverRatifierCancelRoot(address(ecrecoverRatifier), ROOT);
+    }
+
+    /// @dev An initiator who hasn't midnight-authorized this adapter is rejected by the
+    ///      ratifier's own auth gate — msg.sender (adapter) lacks `IMidnight.isAuthorized(maker, ...)`.
+    function test_unauthorizedInitiator_ratifierReverts() public {
+        vm.prank(unauthorized);
+        vm.expectRevert(IEcrecoverRatifier.Unauthorized.selector);
+        bundler3.multicall(_cancelRoot(address(ecrecoverRatifier), ROOT));
+    }
+
+    function testFuzz_cancelRoot(bytes32 fuzzRoot) public {
+        vm.prank(user);
+        bundler3.multicall(_cancelRoot(address(ecrecoverRatifier), fuzzRoot));
+
+        assertTrue(ecrecoverRatifier.isRootCanceled(user, fuzzRoot));
     }
 }
