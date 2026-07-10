@@ -12,8 +12,8 @@ import {Market} from "@midnight/interfaces/IMidnight.sol";
 /// @dev Vault-wrapped Tenor markets are identified by the vault address packed into the same slot.
 library TenorMarketIdLib {
     /// @dev Returns the hash of a Midnight market with maturity excluded.
-    /// @dev Includes `chainId`: on the forked network after a chain fork, pre-fork and post-fork markets hash to
-    /// different Tenor market ids, breaking migrations between them.
+    /// @dev Includes `chainId`: a pre-fork market and a market created after a chain fork never share a Tenor
+    /// market id on the forked network.
     function toTenorMarketId(Market memory market) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(
