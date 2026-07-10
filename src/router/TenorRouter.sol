@@ -77,6 +77,7 @@ struct Action {
 /// @dev Without a feeAdjuster, maxFill, minFill and the price band bound raw Midnight amounts, not net-taker amounts.
 /// @dev Takes from nested callbacks are invisible to the batch's maxFill/minFill accounting and BatchExecuted totals.
 /// @dev Maker-supplied policies, resolvers and clamps are untrusted code; quoting and dispatch may revert or burn gas.
+/// @dev Continuous-fee protection assumes the continuous fee does not change mid-execution.
 abstract contract TenorRouter is ITenorRouter {
     /* IMMUTABLES */
 
