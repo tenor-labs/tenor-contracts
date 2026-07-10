@@ -35,8 +35,9 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 /// @dev `onLiquidate` funds the repayment strictly from redeeming the seized shares: prefunding does not help. Any
 /// skew between the oracle price and the vault's redemption rate, and any rounding loss, are deducted from the
 /// liquidator's incentive bonus (the seized value in excess of `repaidUnits`). When the loss exceeds the bonus
-/// (i.e. `lltv == WAD`, `liquidationCursor == 0`, the first seconds of the post-maturity incentive ramp, or
-/// dust-sized `repaidUnits`), the liquidation reverts with `RepayExceedsRedeemed`.
+/// (i.e. `lltv == WAD`, `liquidationCursor == 0`, the start of the post-maturity incentive ramp — a window that
+/// grows with the skew, up to the full ramp — or dust-sized `repaidUnits`), the liquidation reverts with
+/// `RepayExceedsRedeemed`.
 contract MidnightVaultExecutor is IMidnightVaultExecutor, IRepayCallback, ILiquidateCallback {
     using SafeERC20 for IERC20;
 
