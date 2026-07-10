@@ -140,6 +140,8 @@ abstract contract TenorRouter is ITenorRouter {
 
         bytes32 expectedMarketId = _MORPHO_MIDNIGHT.touchMarket(actions[0].offer.market);
 
+        // Checked once per batch: the fee is assumed not to change between takes, which would require a
+        // governance-authorized take callback (e.g. executing a timelocked governance action).
         if (_MORPHO_MIDNIGHT.continuousFee(expectedMarketId) > params.maxContinuousFee) {
             revert ContinuousFeeAboveMax();
         }
