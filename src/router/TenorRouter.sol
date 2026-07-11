@@ -24,8 +24,8 @@ enum FillAxis {
 /// @notice Parameters for batch execution.
 /// @dev `maxFill`/`minFill` = `type(uint256).max` is a renewal/close-out sentinel resolved against onchain state,
 /// not the ERC-20 "unlimited" idiom; resolution reverts if it yields 0, so opening flows must pass explicit bounds.
-/// @dev `maxFill` must be at most `type(uint128).max` after sentinel resolution (`MaxFillTooLarge`); not a hard
-/// Midnight limit, but a sufficient cap for all practical purposes.
+/// @dev `maxFill` must be at most `type(uint128).max` after sentinel resolution (`MaxFillTooLarge`); a batched
+/// fill can theoretically exceed it, but the cap is sufficient for all practical purposes.
 /// @dev `fillAxis == ASSETS` caps and the slippage denominator both pin to the batch's side; see `_initiatorIsBuyer`.
 /// @dev `_execute` enforces that all actions share the same market (`InconsistentMarket`) and the same side
 /// (`InconsistentSide`). The initiator is always the Midnight taker.
