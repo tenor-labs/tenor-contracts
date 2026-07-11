@@ -24,6 +24,8 @@ enum FillAxis {
 /// @notice Parameters for batch execution.
 /// @dev `maxFill`/`minFill` = `type(uint256).max` is a renewal/close-out sentinel resolved against onchain state,
 /// not the ERC-20 "unlimited" idiom; resolution reverts if it yields 0, so opening flows must pass explicit bounds.
+/// @dev `maxFill` must be at most `type(uint128).max` after sentinel resolution (`MaxFillTooLarge`); a batched
+/// fill can theoretically exceed it, but the cap is sufficient for all practical purposes.
 /// @dev `fillAxis == ASSETS` caps and the slippage denominator both pin to the batch's side; see `_initiatorIsBuyer`.
 /// @dev `_execute` enforces that all actions share the same market (`InconsistentMarket`) and the same side
 /// (`InconsistentSide`). The initiator is always the Midnight taker.
@@ -129,6 +131,7 @@ abstract contract TenorRouter is ITenorRouter {
         returns (uint256[3] memory totals, uint256[3] memory rawTotals)
     {
         if (actions.length == 0) revert EmptyActions();
+        if (maxFill > type(uint128).max) revert MaxFillTooLarge();
         if (params.deadline != 0 && block.timestamp > params.deadline) {
             revert DeadlineExpired(params.deadline, block.timestamp);
         }
@@ -322,7 +325,7 @@ abstract contract TenorRouter is ITenorRouter {
 
     /// @dev Returns `takeUnits` capped by the remaining fill budget (`remaining`, denominated in assets or units
     /// depending on `fillIndex`), the offer's remaining capacity, and the optional `clamp`.
-    /// @dev `remaining` is clamped at `type(uint128).max` so adjuster/inversion WAD math cannot overflow.
+    /// @dev `remaining <= maxFill <= type(uint128).max`, so adjuster/inversion WAD math cannot overflow.
     function _capTakeUnits(
         Action calldata action,
         uint256 takeUnits,
@@ -330,11 +333,10 @@ abstract contract TenorRouter is ITenorRouter {
         uint256 remaining,
         bytes32 marketId
     ) internal view returns (uint256) {
-        uint256 budget = UtilsLib.min(remaining, type(uint128).max);
         uint256 cap = action.feeAdjuster != address(0)
             ? ICallbackFeeAdjuster(action.feeAdjuster)
-                .beforeDispatch(action.offer, fillIndex, budget, action.feeAdjusterData)
-            : RouterLib.budgetToUnits(_MORPHO_MIDNIGHT, marketId, action.offer, fillIndex, budget);
+                .beforeDispatch(action.offer, fillIndex, remaining, action.feeAdjusterData)
+            : RouterLib.budgetToUnits(_MORPHO_MIDNIGHT, marketId, action.offer, fillIndex, remaining);
         takeUnits = UtilsLib.min(takeUnits, cap);
         if (takeUnits == 0) return 0;
 

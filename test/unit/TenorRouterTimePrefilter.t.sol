@@ -48,7 +48,7 @@ contract TenorRouterTimePrefilter is BoundaryTestBase {
         return ExecuteParams({
             deadline: 0,
             fillAxis: FillAxis.UNITS,
-            maxFill: type(uint256).max,
+            maxFill: type(uint128).max,
             minFill: 0,
             minPrice: 0,
             maxPrice: type(uint256).max,
