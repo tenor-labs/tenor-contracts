@@ -64,7 +64,7 @@ contract TakeRouterTest is BoundaryTestBase {
         return ExecuteParams({
             deadline: 0,
             fillAxis: FillAxis.UNITS,
-            maxFill: type(uint256).max,
+            maxFill: type(uint128).max,
             minFill: 0,
             minPrice: 0,
             maxPrice: type(uint256).max,
@@ -332,25 +332,40 @@ contract TakeRouterTest is BoundaryTestBase {
         assertLe(units, params.maxFill, "UNITS: capped");
     }
 
-    /// @dev maxFill at or above type(uint256).max / WAD used to skip the budget-to-units conversion;
-    /// the budget now saturates at type(uint128).max and converts uniformly, without binding the fill.
-    function test_fillAxis_assets_hugeMaxFill_doesNotBind() public {
+    /// @dev maxFill above type(uint128).max reverts upfront so the fee adjuster always sees the exact
+    /// remaining budget.
+    function test_fillAxis_assets_maxFillAboveUint128_reverts() public {
         _primeBuyerSide();
         Action[] memory actions = new Action[](1);
         actions[0] = _buyerSideAction(50e18, DEFAULT_TICK, false);
 
         ExecuteParams memory params = _defaultExecuteParams(lender);
         params.fillAxis = FillAxis.ASSETS;
-        params.maxFill = type(uint256).max / 1e18;
+        params.maxFill = uint256(type(uint128).max) + 1;
+
+        vm.prank(lender);
+        vm.expectRevert(ITenorRouter.MaxFillTooLarge.selector);
+        router.execute(params, actions);
+    }
+
+    /// @dev The largest accepted maxFill converts through budgetToUnits without binding the fill.
+    function test_fillAxis_assets_maxFillUint128Max_doesNotBind() public {
+        _primeBuyerSide();
+        Action[] memory actions = new Action[](1);
+        actions[0] = _buyerSideAction(50e18, DEFAULT_TICK, false);
+
+        ExecuteParams memory params = _defaultExecuteParams(lender);
+        params.fillAxis = FillAxis.ASSETS;
+        params.maxFill = type(uint128).max;
 
         vm.prank(lender);
         (,, uint256 units) = router.execute(params, actions);
-        assertEq(units, 50e18, "HUGE_MAX: saturated budget does not bind");
+        assertEq(units, 50e18, "MAX_UINT128: budget does not bind");
     }
 
-    /// @dev Same band through the fee-adjuster path: the saturated budget must not overflow the adjuster's
+    /// @dev Same bound through the fee-adjuster path: the uint128 budget must not overflow the adjuster's
     /// WAD inversions.
-    function test_fillAxis_assets_hugeMaxFill_withFeeAdjuster() public {
+    function test_fillAxis_assets_maxFillUint128Max_withFeeAdjuster() public {
         _primeBuyerSide();
         Action memory action = _buyerSideAction(50e18, DEFAULT_TICK, false);
         action.feeAdjuster = address(new CallbackFeeAdjuster(address(midnight)));
@@ -360,11 +375,11 @@ contract TakeRouterTest is BoundaryTestBase {
 
         ExecuteParams memory params = _defaultExecuteParams(lender);
         params.fillAxis = FillAxis.ASSETS;
-        params.maxFill = type(uint256).max / 1e18;
+        params.maxFill = type(uint128).max;
 
         vm.prank(lender);
         (,, uint256 units) = router.execute(params, actions);
-        assertEq(units, 50e18, "HUGE_MAX_ADJ: saturated budget does not bind through adjuster");
+        assertEq(units, 50e18, "MAX_UINT128_ADJ: budget does not bind through adjuster");
     }
 
     /* ═══════════════════════════════════════════════════════════════

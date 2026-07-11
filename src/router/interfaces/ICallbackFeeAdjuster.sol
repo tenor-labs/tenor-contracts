@@ -18,7 +18,7 @@ interface ICallbackFeeAdjuster {
     /// @dev The cap is conservative: it may underfill by a rounding tolerance but never overshoots.
     /// @param offer The offer about to be taken.
     /// @param fillIndex The fill dimension (0=BUYER_ASSETS, 1=SELLER_ASSETS, 2=UNITS).
-    /// @param remainingBudget The remaining fill budget in the `fillIndex` dimension; clamped at `type(uint128).max`.
+    /// @param remainingBudget The remaining fill budget in the `fillIndex` dimension; at most `type(uint128).max`.
     /// @param data Arbitrary adjuster-specific data encoded by the caller.
     /// @return takeUnits The maximum market units to take.
     function beforeDispatch(Offer calldata offer, uint8 fillIndex, uint256 remainingBudget, bytes calldata data)

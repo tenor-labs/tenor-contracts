@@ -264,8 +264,8 @@ contract RouterLibBudgetTightnessTest is Test {
     {
         uint256 fee = _setSettlementFee(feeSeed);
         uint16 tick = uint16(bound(tickRaw, 0, MAX_TICK)); // [0, MAX_TICK]
-        // Router precondition: _capTakeUnits only calls budgetToUnits when remaining < uint256.max/WAD
-        // (TenorRouter.sol). Upper end still exercises uint128 saturation + the mulDivDownInverse guard.
+        // Router budgets are <= type(uint128).max (MaxFillTooLarge in TenorRouter._execute), but the shared
+        // library stays robust beyond it; the upper end exercises uint128 saturation + the mulDivDownInverse guard.
         budget = bound(budget, 1, type(uint256).max / WAD - 1);
         uint8 fillIndex = uint8(bound(dimSel, 0, 2)); // BUYER_ASSETS | SELLER_ASSETS | UNITS
 
