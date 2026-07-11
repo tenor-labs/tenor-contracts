@@ -31,7 +31,6 @@ interface ITenorRouter {
     error InconsistentMarket(uint256 index);
     error ContinuousFeeAboveMax();
     error EmptyActions();
-    /// @notice `maxFill` exceeds `type(uint128).max` (after sentinel resolution).
     error MaxFillTooLarge();
     error ReduceOnlyViolated(uint256 wrongSideBefore, uint256 wrongSideAfter);
 
