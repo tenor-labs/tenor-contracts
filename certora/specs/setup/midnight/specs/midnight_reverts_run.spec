@@ -1,0 +1,33 @@
+// Run driver for the revert-condition rules under the callbacks summary.
+
+import "midnight_reverts.spec";
+import "setup/callbacks.spec";
+
+use rule setConfiguratorRevertsWhenNotConfigurator;
+use rule setFeeSetterRevertsWhenNotConfigurator;
+use rule setFeeClaimerRevertsWhenNotConfigurator;
+use rule setTickSpacingSetterRevertsWhenNotConfigurator;
+use rule setMarketSettlementFeeRevertsWhenNotFeeSetter;
+use rule setMarketContinuousFeeRevertsWhenNotFeeSetter;
+use rule setMarketTickSpacingRevertsWhenNotTickSpacingSetter;
+use rule claimSettlementFeeRevertsWhenNotFeeClaimer;
+use rule claimContinuousFeeRevertsWhenNotFeeClaimer;
+use rule withdrawRevertsWhenUnauthorized;
+use rule withdrawCollateralRevertsWhenUnauthorized;
+use rule repayRevertsWhenUnauthorized;
+use rule supplyCollateralRevertsWhenUnauthorized;
+use rule setIsAuthorizedRevertsWhenUnauthorized;
+use rule takeRevertsWhenTakerUnauthorized;
+use rule liquidateRevertsWhenNotBorrower;
+use rule liquidateRevertsOnInconsistentInput;
+use rule takeRevertsOnSelfTake;
+use rule takeRevertsOnBothCapsNonZero;
+use rule setConsumedRevertsOnNonMonotone;
+use rule coreViewsNeverRevert;
+use rule enableLltvRevertsWhenNotConfigurator;
+use rule enableLiquidationCursorRevertsWhenNotConfigurator;
+use rule enableLltvRevertsOnLltvAboveWad;
+use rule enableLiquidationCursorRevertsOnCursorAtOrAboveWad;
+use rule takeRevertsOnContinuousFeeAboveOfferCap;
+use rule takeRevertsOnUnusedReceiverNonZero;
+use rule takeRevertsOnBothCapsZero;
