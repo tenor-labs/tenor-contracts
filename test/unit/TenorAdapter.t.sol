@@ -5,6 +5,9 @@ import {TenorAdapter} from "../../src/bundler/TenorAdapter.sol";
 import {MigrationRatifier} from "../../src/ratifiers/MigrationRatifier.sol";
 import {IMigrationRatifier} from "../../src/ratifiers/interfaces/IMigrationRatifier.sol";
 import {IMidnightAdapter} from "../../src/bundler/interfaces/IMidnightAdapter.sol";
+import {
+    BorrowRenewalConfigurationV1Base
+} from "../../src/ratifiers/configurations/BorrowRenewalConfigurationV1Base.sol";
 import {Midnight} from "@midnight/Midnight.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
 import {EventsLib} from "@midnight/libraries/EventsLib.sol";
@@ -15,6 +18,9 @@ import {IRatifier} from "@midnight/interfaces/IRatifier.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TickLib} from "@midnight/libraries/TickLib.sol";
 import {CALLBACK_SUCCESS, DEFAULT_TICK_SPACING} from "@midnight/libraries/ConstantsLib.sol";
+import {Id, MarketParams} from "@morphoBlue/interfaces/IMorpho.sol";
+import {MarketParamsLib} from "@morphoBlue/libraries/MarketParamsLib.sol";
+import {TenorMarketIdLib} from "../../src/libraries/TenorMarketIdLib.sol";
 import {Fixtures} from "../helpers/Fixtures.sol";
 import {MockERC20} from "../helpers/mocks/MockERC20.sol";
 import {Oracle} from "../helpers/Oracle.sol";
@@ -48,7 +54,7 @@ contract TenorAdapterTestBase is Fixtures {
     }
 
     function _deployAdapter() internal virtual returns (TenorAdapter) {
-        return new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+        return deployTenorAdapter(bundler3, address(midnight));
     }
 
     function _makeCall(bytes memory data) internal view returns (Call[] memory calls) {
@@ -96,14 +102,57 @@ abstract contract TenorAdapterMarketTestBase is TenorAdapterTestBase {
 
 contract TenorAdapterConstructorTest is TenorAdapterTestBase {
     function test_constructor_revertsZeroRatifier() public {
-        vm.expectRevert(ErrorsLib.ZeroAddress.selector);
-        new TenorAdapter(address(bundler3), address(midnight), address(0));
+        // Reading the callbacks from a zero ratifier reverts on empty returndata.
+        vm.expectRevert();
+        deployTenorAdapter(bundler3, address(midnight), address(0));
     }
 
-    function test_constructor_setsRatifier() public {
-        address ratifier = makeAddr("RealRatifier");
-        TenorAdapter fresh = new TenorAdapter(address(bundler3), address(midnight), ratifier);
-        assertEq(address(fresh.RATIFIER()), ratifier);
+    function test_constructor_setsRatifierAndCanonicalConfig() public {
+        MigrationRatifier ratifier = deployMigrationRatifier(address(midnight));
+        RenewalConfig memory config = defaultRenewalConfig();
+        TenorAdapter fresh = deployTenorAdapter(bundler3, address(midnight), address(ratifier));
+
+        assertEq(address(fresh.RATIFIER()), address(ratifier));
+        assertEq(fresh.BORROW_MIDNIGHT_RENEWAL_CALLBACK(), ratifier.BORROW_MIDNIGHT_RENEWAL_CALLBACK());
+        assertEq(fresh.BORROW_MIDNIGHT_TO_BLUE_CALLBACK(), ratifier.BORROW_MIDNIGHT_TO_BLUE_CALLBACK());
+        assertEq(fresh.BORROW_BLUE_TO_MIDNIGHT_CALLBACK(), ratifier.BORROW_BLUE_TO_MIDNIGHT_CALLBACK());
+        assertEq(fresh.ENTRY_RATE_POLICY(), config.entryRatePolicy);
+        assertEq(fresh.EXIT_RATE_POLICY(), config.exitRatePolicy);
+        assertEq(fresh.RENEWAL_CADENCE(), config.renewalCadence);
+        assertEq(fresh.RENEWAL_WINDOW(), config.renewalWindow);
+        assertEq(fresh.EXIT_WINDOW(), config.exitWindow);
+        assertEq(fresh.MIN_DURATION(), config.minDuration);
+        assertEq(fresh.MAX_DURATION(), config.maxDuration);
+    }
+
+    function test_constructor_maxRenewalRate_is15PercentApr() public {
+        TenorAdapter fresh = deployTenorAdapter(bundler3, address(midnight));
+        uint256 maxApr = 0.15e18;
+        assertEq(fresh.MAX_RENEWAL_RATE_PER_SECOND(), maxApr / 365 days);
+    }
+
+    function test_constructor_revertsMinDurationNotAboveRenewalWindow() public {
+        RenewalConfig memory config = defaultRenewalConfig();
+        config.minDuration = config.renewalWindow;
+        _expectConstructorRevert(config, BorrowRenewalConfigurationV1Base.InvalidRenewalConfig.selector);
+    }
+
+    function test_constructor_revertsMinDurationNotAboveExitWindow() public {
+        RenewalConfig memory config = defaultRenewalConfig();
+        config.exitWindow = config.minDuration;
+        _expectConstructorRevert(config, BorrowRenewalConfigurationV1Base.InvalidRenewalConfig.selector);
+    }
+
+    function test_constructor_revertsMaxDurationBelowMinDuration() public {
+        RenewalConfig memory config = defaultRenewalConfig();
+        config.maxDuration = config.minDuration - 1;
+        _expectConstructorRevert(config, BorrowRenewalConfigurationV1Base.InvalidRenewalConfig.selector);
+    }
+
+    function _expectConstructorRevert(RenewalConfig memory config, bytes4 selector) internal {
+        MigrationRatifier ratifier = deployMigrationRatifier(address(midnight));
+        vm.expectRevert(selector);
+        deployTenorAdapter(bundler3, address(midnight), address(ratifier), config);
     }
 }
 
@@ -376,59 +425,149 @@ contract TenorAdapterWithdrawTest is TenorAdapterMarketTestBase {
     }
 }
 
-contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
+contract TenorAdapterRenewalParamsTest is TenorAdapterTestBase {
+    using MarketParamsLib for MarketParams;
+    using TenorMarketIdLib for Market;
+
     MigrationRatifier internal ratifier;
+    RenewalConfig internal config;
 
-    address internal callback;
-    address internal ratePolicy;
+    address internal renewalCallback;
+    address internal exitCallback;
+    address internal entryCallback;
 
-    bytes32 internal constant SOURCE_ID = keccak256("source-tenor-market");
-    bytes32 internal constant TARGET_ID = keccak256("target-tenor-market");
+    Market internal tenorMarket;
+    MarketParams internal blueParams;
+    bytes32 internal tenorMarketId;
+    bytes32 internal blueMarketId;
+
+    uint40 internal constant RATE = 1e9;
+    uint256 internal constant LLTV = 0.945e18;
+
+    IMigrationRatifier.UserMigrationParams internal EMPTY_PARAMS =
+        IMigrationRatifier.UserMigrationParams(address(0), 0, 0, 0, address(0), 0);
 
     function setUp() public override {
         super.setUp();
 
-        callback = makeAddr("Callback");
-        ratePolicy = makeAddr("RatePolicy");
+        config = defaultRenewalConfig();
+        renewalCallback = ratifier.BORROW_MIDNIGHT_RENEWAL_CALLBACK();
+        exitCallback = ratifier.BORROW_MIDNIGHT_TO_BLUE_CALLBACK();
+        entryCallback = ratifier.BORROW_BLUE_TO_MIDNIGHT_CALLBACK();
+
+        address loanToken = makeAddr("RenewalLoanToken");
+        address collateralToken = makeAddr("RenewalCollateralToken");
+        address oracle = makeAddr("RenewalOracle");
+
+        CollateralParams[] memory collaterals = new CollateralParams[](1);
+        collaterals[0] = CollateralParams({
+            token: collateralToken, lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: oracle
+        });
+        tenorMarket = Market({
+            chainId: block.chainid,
+            midnight: address(midnight),
+            loanToken: loanToken,
+            collateralParams: collaterals,
+            maturity: block.timestamp + 7 days,
+            rcfThreshold: 0,
+            enterGate: address(0),
+            liquidatorGate: address(0)
+        });
+        blueParams = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: oracle,
+            irm: makeAddr("RenewalIrm"),
+            lltv: LLTV
+        });
+        tenorMarketId = tenorMarket.toTenorMarketId();
+        blueMarketId = Id.unwrap(blueParams.id());
     }
 
     function _deployAdapter() internal override returns (TenorAdapter) {
-        ratifier = new MigrationRatifier(
-            address(midnight),
-            makeAddr("BorrowMidnightRenewalCallback"),
-            makeAddr("BorrowBlueToMidnightCallback"),
-            makeAddr("LendVaultToMidnightCallback"),
-            makeAddr("BorrowMidnightToBlueCallback"),
-            makeAddr("LendMidnightToVaultCallback"),
-            makeAddr("LendMidnightRenewalCallback"),
-            address(this)
-        );
-        return new TenorAdapter(address(bundler3), address(midnight), address(ratifier));
+        ratifier = deployMigrationRatifier(address(midnight));
+        return deployTenorAdapter(bundler3, address(midnight), address(ratifier));
     }
 
-    function _params() internal view returns (IMigrationRatifier.UserMigrationParams memory) {
+    function _renewalParams(uint40 limitRatePerSecond)
+        internal
+        view
+        returns (IMigrationRatifier.UserMigrationParams memory)
+    {
         return IMigrationRatifier.UserMigrationParams({
-            interestRatePolicy: ratePolicy,
-            renewalWindow: uint32(7 days),
-            minDuration: uint32(7 days),
-            maxDuration: uint32(365 days),
-            renewalCadence: address(0),
-            limitRatePerSecond: type(uint40).max
+            interestRatePolicy: config.entryRatePolicy,
+            renewalWindow: config.renewalWindow,
+            minDuration: config.minDuration,
+            maxDuration: config.maxDuration,
+            renewalCadence: config.renewalCadence,
+            limitRatePerSecond: limitRatePerSecond
         });
     }
 
-    function _setParamsCall() internal view returns (Call[] memory) {
-        return _makeCall(abi.encodeCall(adapter.migrationSetParams, (callback, SOURCE_ID, TARGET_ID, _params())));
+    function _exitParams() internal view returns (IMigrationRatifier.UserMigrationParams memory) {
+        return IMigrationRatifier.UserMigrationParams({
+            interestRatePolicy: config.exitRatePolicy,
+            renewalWindow: config.exitWindow,
+            minDuration: 1,
+            maxDuration: config.maxDuration,
+            renewalCadence: config.renewalCadence,
+            limitRatePerSecond: 0
+        });
     }
 
-    function _clearParamsCall() internal view returns (Call[] memory) {
-        return _makeCall(abi.encodeCall(adapter.migrationClearParams, (callback, SOURCE_ID, TARGET_ID)));
+    function _entryParams(uint40 limitRatePerSecond)
+        internal
+        view
+        returns (IMigrationRatifier.UserMigrationParams memory)
+    {
+        return IMigrationRatifier.UserMigrationParams({
+            interestRatePolicy: config.entryRatePolicy,
+            renewalWindow: 0,
+            minDuration: config.minDuration,
+            maxDuration: config.maxDuration,
+            renewalCadence: config.renewalCadence,
+            limitRatePerSecond: limitRatePerSecond
+        });
     }
 
-    function test_migrationSetParams_storesForInitiator() public {
-        vm.prank(user);
-        bundler3.multicall(_setParamsCall());
+    function _setCall(
+        Market memory market,
+        MarketParams memory blue,
+        uint40 rate,
+        bool enableMidnightToMidnight,
+        bool enableBlueToMidnight
+    ) internal view returns (Call[] memory) {
+        return _makeCall(
+            abi.encodeCall(
+                adapter.setBorrowRenewalConfigurationV1,
+                (market, blue, rate, enableMidnightToMidnight, enableBlueToMidnight)
+            )
+        );
+    }
 
+    function _setCall(uint40 rate, bool enableMidnightToMidnight, bool enableBlueToMidnight)
+        internal
+        view
+        returns (Call[] memory)
+    {
+        return _setCall(tenorMarket, blueParams, rate, enableMidnightToMidnight, enableBlueToMidnight);
+    }
+
+    function _clearCall(Market memory market, MarketParams memory blue) internal view returns (Call[] memory) {
+        return _makeCall(abi.encodeCall(adapter.clearBorrowRenewalConfigurationV1, (market, blue)));
+    }
+
+    function _clearCall() internal view returns (Call[] memory) {
+        return _clearCall(tenorMarket, blueParams);
+    }
+
+    function _assertStoredParams(
+        address owner,
+        address callback,
+        bytes32 src,
+        bytes32 tgt,
+        IMigrationRatifier.UserMigrationParams memory expected
+    ) internal view {
         (
             address interestRatePolicy,
             uint32 renewalWindow,
@@ -436,125 +575,386 @@ contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
             uint32 maxDuration,
             address renewalCadence,
             uint40 limitRatePerSecond
-        ) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
-        assertEq(interestRatePolicy, ratePolicy);
-        assertEq(renewalWindow, uint32(7 days));
-        assertEq(minDuration, uint32(7 days));
-        assertEq(maxDuration, uint32(365 days));
-        assertEq(renewalCadence, address(0));
-        assertEq(limitRatePerSecond, type(uint40).max);
+        ) = ratifier.userParams(owner, callback, src, tgt);
+        assertEq(interestRatePolicy, expected.interestRatePolicy);
+        assertEq(renewalWindow, expected.renewalWindow);
+        assertEq(minDuration, expected.minDuration);
+        assertEq(maxDuration, expected.maxDuration);
+        assertEq(renewalCadence, expected.renewalCadence);
+        assertEq(limitRatePerSecond, expected.limitRatePerSecond);
+    }
 
-        (address adapterPolicy,,,,,) = ratifier.userParams(address(adapter), callback, SOURCE_ID, TARGET_ID);
+    /* SET */
+
+    function test_setBorrowRenewalConfigurationV1_storesAllLegsForInitiator() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, true));
+
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, _renewalParams(RATE));
+        _assertStoredParams(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, _entryParams(RATE));
+
+        (address adapterPolicy,,,,,) =
+            ratifier.userParams(address(adapter), renewalCallback, tenorMarketId, tenorMarketId);
         assertEq(adapterPolicy, address(0), "params keyed by initiator, not adapter");
     }
 
-    function test_migrationSetParams_pinsOnBehalfToInitiator() public {
+    function test_setBorrowRenewalConfigurationV1_blueToMidnightDisabled_writesTwoLegs() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, false));
+
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, _renewalParams(RATE));
+        _assertStoredParams(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, EMPTY_PARAMS);
+    }
+
+    function test_setBorrowRenewalConfigurationV1_disablingBlueToMidnight_clearsEntryLeg() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, true));
+
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, false));
+
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, EMPTY_PARAMS);
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, _renewalParams(RATE));
+        _assertStoredParams(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+    }
+
+    function test_setBorrowRenewalConfigurationV1_renewalLegIsSameMarket() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, true));
+
+        (address offKeyPolicy,,,,,) = ratifier.userParams(user, renewalCallback, tenorMarketId, blueMarketId);
+        assertEq(offKeyPolicy, address(0), "renewal leg keyed (market, market), nothing else");
+    }
+
+    function test_setBorrowRenewalConfigurationV1_exitLegMinDurationIsOne() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, true));
+
+        (,, uint32 minDuration,,,) = ratifier.userParams(user, exitCallback, tenorMarketId, blueMarketId);
+        assertEq(minDuration, 1, "exit leg minDuration pinned to 1");
+    }
+
+    function test_setBorrowRenewalConfigurationV1_zeroRate_reverts() public {
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.InvalidLimitRate.selector);
+        bundler3.multicall(_setCall(0, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_rateAboveCap_reverts() public {
+        uint40 cap = adapter.MAX_RENEWAL_RATE_PER_SECOND();
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.InvalidLimitRate.selector);
+        bundler3.multicall(_setCall(cap + 1, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_rateAtCap_succeeds() public {
+        uint40 cap = adapter.MAX_RENEWAL_RATE_PER_SECOND();
+        vm.prank(user);
+        bundler3.multicall(_setCall(cap, true, true));
+
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, _renewalParams(cap));
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, _entryParams(cap));
+    }
+
+    function testFuzz_setBorrowRenewalConfigurationV1_rate(
+        uint40 rate,
+        bool enableMidnightToMidnight,
+        bool enableBlueToMidnight
+    ) public {
+        uint40 cap = adapter.MAX_RENEWAL_RATE_PER_SECOND();
+        bool valid = enableMidnightToMidnight || enableBlueToMidnight ? rate != 0 && rate <= cap : rate == 0;
+        vm.prank(user);
+        if (!valid) vm.expectRevert(BorrowRenewalConfigurationV1Base.InvalidLimitRate.selector);
+        bundler3.multicall(_setCall(rate, enableMidnightToMidnight, enableBlueToMidnight));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_midnightToMidnightDisabled_writesTwoLegs() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, false, true));
+
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, EMPTY_PARAMS);
+        _assertStoredParams(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, _entryParams(RATE));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_disablingMidnightToMidnight_clearsRenewalLeg() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, true));
+
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, false, true));
+
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, EMPTY_PARAMS);
+        _assertStoredParams(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, _entryParams(RATE));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_bothDisabled_zeroRate_writesExitOnly() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(0, false, false));
+
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, EMPTY_PARAMS);
+        _assertStoredParams(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, EMPTY_PARAMS);
+    }
+
+    function test_setBorrowRenewalConfigurationV1_bothDisabled_nonZeroRate_reverts() public {
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.InvalidLimitRate.selector);
+        bundler3.multicall(_setCall(RATE, false, false));
+    }
+
+    /* MARKET PAIR VALIDATION */
+
+    function test_setBorrowRenewalConfigurationV1_loanTokenMismatch_reverts() public {
+        MarketParams memory blue = blueParams;
+        blue.loanToken = makeAddr("OtherLoanToken");
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.LoanTokenMismatch.selector);
+        bundler3.multicall(_setCall(tenorMarket, blue, RATE, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_zeroLoanTokens_revert() public {
+        Market memory market = tenorMarket;
+        MarketParams memory blue = blueParams;
+        market.loanToken = address(0);
+        blue.loanToken = address(0);
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.LoanTokenMismatch.selector);
+        bundler3.multicall(_setCall(market, blue, RATE, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_unknownCollateral_reverts() public {
+        MarketParams memory blue = blueParams;
+        blue.collateralToken = makeAddr("OtherCollateral");
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.CollateralMismatch.selector);
+        bundler3.multicall(_setCall(tenorMarket, blue, RATE, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_lltvMismatch_reverts() public {
+        MarketParams memory blue = blueParams;
+        blue.lltv = LLTV - 1;
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.CollateralMismatch.selector);
+        bundler3.multicall(_setCall(tenorMarket, blue, RATE, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_oracleMismatch_reverts() public {
+        MarketParams memory blue = blueParams;
+        blue.oracle = makeAddr("OtherOracle");
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.CollateralMismatch.selector);
+        bundler3.multicall(_setCall(tenorMarket, blue, RATE, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_noCollaterals_reverts() public {
+        Market memory market = tenorMarket;
+        market.collateralParams = new CollateralParams[](0);
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.CollateralMismatch.selector);
+        bundler3.multicall(_setCall(market, blueParams, RATE, true, true));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_matchesCorrectCollateralAmongSeveral() public {
+        // Two collaterals sorted by token address; Blue matches the second, whose lltv/oracle differ from the
+        // first. The check must compare the entry found by token, not another index.
+        address tokenA = makeAddr("CollateralA");
+        address tokenB = makeAddr("CollateralB");
+        (address low, address high) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+
+        Market memory market = tenorMarket;
+        market.collateralParams = new CollateralParams[](2);
+        market.collateralParams[0] = CollateralParams({
+            token: low, lltv: 0.5e18, liquidationCursor: LIQUIDATION_CURSOR, oracle: makeAddr("OracleLow")
+        });
+        market.collateralParams[1] = CollateralParams({
+            token: high, lltv: LLTV, liquidationCursor: LIQUIDATION_CURSOR, oracle: makeAddr("OracleHigh")
+        });
+
+        MarketParams memory blue = blueParams;
+        blue.collateralToken = high;
+        blue.oracle = makeAddr("OracleHigh");
+
+        vm.prank(user);
+        bundler3.multicall(_setCall(market, blue, RATE, true, true));
+
+        bytes32 marketId = TenorMarketIdLib.toTenorMarketId(market);
+        (address storedPolicy,,,,,) = ratifier.userParams(user, renewalCallback, marketId, marketId);
+        assertEq(storedPolicy, config.entryRatePolicy);
+    }
+
+    function test_setBorrowRenewalConfigurationV1_mismatch_writesNoLeg() public {
+        MarketParams memory blue = blueParams;
+        blue.lltv = LLTV - 1;
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.CollateralMismatch.selector);
+        bundler3.multicall(_setCall(tenorMarket, blue, RATE, true, true));
+
+        (address renewalPolicy,,,,,) = ratifier.userParams(user, renewalCallback, tenorMarketId, tenorMarketId);
+        assertEq(renewalPolicy, address(0), "no leg partially written");
+    }
+
+    /* AUTH */
+
+    function test_setBorrowRenewalConfigurationV1_pinsOnBehalfToInitiator() public {
         address attacker = makeAddr("Attacker");
 
         vm.prank(attacker);
         midnight.setIsAuthorized(address(adapter), true, attacker);
 
         vm.prank(attacker);
-        bundler3.multicall(_setParamsCall());
+        bundler3.multicall(_setCall(RATE, true, true));
 
-        (address victimPolicy,,,,,) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
-        (address attackerPolicy,,,,,) = ratifier.userParams(attacker, callback, SOURCE_ID, TARGET_ID);
-        assertEq(victimPolicy, address(0), "victim params untouched");
-        assertEq(attackerPolicy, ratePolicy, "params landed on initiator");
+        (address victimPolicy,,,,,) = ratifier.userParams(user, renewalCallback, tenorMarketId, tenorMarketId);
+        (address victimExitPolicy,,,,,) = ratifier.userParams(user, exitCallback, tenorMarketId, blueMarketId);
+        (address victimEntryPolicy,,,,,) = ratifier.userParams(user, entryCallback, blueMarketId, tenorMarketId);
+        assertEq(victimPolicy, address(0), "victim renewal params untouched");
+        assertEq(victimExitPolicy, address(0), "victim exit params untouched");
+        assertEq(victimEntryPolicy, address(0), "victim entry params untouched");
+        _assertStoredParams(attacker, renewalCallback, tenorMarketId, tenorMarketId, _renewalParams(RATE));
+        _assertStoredParams(attacker, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        _assertStoredParams(attacker, entryCallback, blueMarketId, tenorMarketId, _entryParams(RATE));
     }
 
-    function test_migrationSetParams_emitsEvent() public {
+    function test_setBorrowRenewalConfigurationV1_emitsAllEvents() public {
         vm.prank(user);
         vm.expectEmit(true, true, true, true, address(ratifier));
-        emit IMigrationRatifier.ParamsSet(user, callback, SOURCE_ID, TARGET_ID, _params());
-        bundler3.multicall(_setParamsCall());
+        emit IMigrationRatifier.ParamsSet(user, renewalCallback, tenorMarketId, tenorMarketId, _renewalParams(RATE));
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsSet(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsSet(user, entryCallback, blueMarketId, tenorMarketId, _entryParams(RATE));
+        bundler3.multicall(_setCall(RATE, true, true));
     }
 
-    function test_migrationSetParams_unauthorizedInitiator_ratifierReverts() public {
+    function test_setBorrowRenewalConfigurationV1_blueToMidnightDisabled_emitsEntryCleared() public {
+        vm.prank(user);
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsSet(user, renewalCallback, tenorMarketId, tenorMarketId, _renewalParams(RATE));
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsSet(user, exitCallback, tenorMarketId, blueMarketId, _exitParams());
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsCleared(user, entryCallback, blueMarketId, tenorMarketId);
+        bundler3.multicall(_setCall(RATE, true, false));
+    }
+
+    function test_setBorrowRenewalConfigurationV1_unauthorizedInitiator_ratifierReverts() public {
         vm.prank(unauthorized);
         vm.expectRevert(IMigrationRatifier.Unauthorized.selector);
-        bundler3.multicall(_setParamsCall());
+        bundler3.multicall(_setCall(RATE, true, true));
     }
 
-    function test_migrationSetParams_onlyBundler() public {
+    function test_setBorrowRenewalConfigurationV1_onlyBundler() public {
         vm.prank(user);
         vm.expectRevert(ErrorsLib.UnauthorizedSender.selector);
-        adapter.migrationSetParams(callback, SOURCE_ID, TARGET_ID, _params());
+        adapter.setBorrowRenewalConfigurationV1(tenorMarket, blueParams, RATE, true, true);
     }
 
-    function test_migrationClearParams_clearsInitiatorParams() public {
+    /* CLEAR */
+
+    function test_clearBorrowRenewalConfigurationV1_clearsAllLegs() public {
         vm.prank(user);
-        bundler3.multicall(_setParamsCall());
+        bundler3.multicall(_setCall(RATE, true, true));
 
         vm.prank(user);
-        bundler3.multicall(_clearParamsCall());
+        bundler3.multicall(_clearCall());
 
-        (
-            address interestRatePolicy,
-            uint32 renewalWindow,
-            uint32 minDuration,
-            uint32 maxDuration,
-            address renewalCadence,
-            uint40 limitRatePerSecond
-        ) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
-        assertEq(interestRatePolicy, address(0));
-        assertEq(renewalWindow, 0);
-        assertEq(minDuration, 0);
-        assertEq(maxDuration, 0);
-        assertEq(renewalCadence, address(0));
-        assertEq(limitRatePerSecond, 0);
+        _assertStoredParams(user, renewalCallback, tenorMarketId, tenorMarketId, EMPTY_PARAMS);
+        _assertStoredParams(user, exitCallback, tenorMarketId, blueMarketId, EMPTY_PARAMS);
+        _assertStoredParams(user, entryCallback, blueMarketId, tenorMarketId, EMPTY_PARAMS);
     }
 
-    function test_migrationClearParams_pinsOnBehalfToInitiator() public {
+    function test_clearBorrowRenewalConfigurationV1_mismatch_reverts() public {
+        vm.prank(user);
+        bundler3.multicall(_setCall(RATE, true, true));
+
+        MarketParams memory blue = blueParams;
+        blue.lltv = LLTV - 1;
+
+        vm.prank(user);
+        vm.expectRevert(BorrowRenewalConfigurationV1Base.CollateralMismatch.selector);
+        bundler3.multicall(_clearCall(tenorMarket, blue));
+
+        (address livePolicy,,,,,) = ratifier.userParams(user, renewalCallback, tenorMarketId, tenorMarketId);
+        assertEq(livePolicy, config.entryRatePolicy, "mismatched clear reverts instead of no-op");
+    }
+
+    function test_clearBorrowRenewalConfigurationV1_pinsOnBehalfToInitiator() public {
         address attacker = makeAddr("Attacker");
 
         vm.prank(user);
-        bundler3.multicall(_setParamsCall());
+        bundler3.multicall(_setCall(RATE, true, true));
 
         vm.prank(attacker);
         midnight.setIsAuthorized(address(adapter), true, attacker);
 
         vm.prank(attacker);
-        bundler3.multicall(_clearParamsCall());
+        bundler3.multicall(_clearCall());
 
-        (address victimPolicy,,,,,) = ratifier.userParams(user, callback, SOURCE_ID, TARGET_ID);
-        assertEq(victimPolicy, ratePolicy, "victim params not cleared by another initiator");
+        (address victimPolicy,,,,,) = ratifier.userParams(user, renewalCallback, tenorMarketId, tenorMarketId);
+        (address victimExitPolicy,,,,,) = ratifier.userParams(user, exitCallback, tenorMarketId, blueMarketId);
+        (address victimEntryPolicy,,,,,) = ratifier.userParams(user, entryCallback, blueMarketId, tenorMarketId);
+        assertEq(victimPolicy, config.entryRatePolicy, "victim renewal params not cleared by another initiator");
+        assertEq(victimExitPolicy, config.exitRatePolicy, "victim exit params not cleared by another initiator");
+        assertEq(victimEntryPolicy, config.entryRatePolicy, "victim entry params not cleared by another initiator");
     }
 
-    function test_migrationClearParams_emitsEvent() public {
+    function test_clearBorrowRenewalConfigurationV1_emitsAllEvents() public {
         vm.prank(user);
-        bundler3.multicall(_setParamsCall());
+        bundler3.multicall(_setCall(RATE, true, true));
 
         vm.prank(user);
         vm.expectEmit(true, true, true, true, address(ratifier));
-        emit IMigrationRatifier.ParamsCleared(user, callback, SOURCE_ID, TARGET_ID);
-        bundler3.multicall(_clearParamsCall());
+        emit IMigrationRatifier.ParamsCleared(user, renewalCallback, tenorMarketId, tenorMarketId);
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsCleared(user, exitCallback, tenorMarketId, blueMarketId);
+        vm.expectEmit(true, true, true, true, address(ratifier));
+        emit IMigrationRatifier.ParamsCleared(user, entryCallback, blueMarketId, tenorMarketId);
+        bundler3.multicall(_clearCall());
     }
 
-    function test_migrationClearParams_unauthorizedInitiator_ratifierReverts() public {
-        vm.prank(unauthorized);
-        vm.expectRevert(IMigrationRatifier.Unauthorized.selector);
-        bundler3.multicall(_clearParamsCall());
-    }
-
-    function test_migrationClearParams_onlyBundler() public {
+    function test_clearBorrowRenewalConfigurationV1_onlyBundler() public {
         vm.prank(user);
         vm.expectRevert(ErrorsLib.UnauthorizedSender.selector);
-        adapter.migrationClearParams(callback, SOURCE_ID, TARGET_ID);
+        adapter.clearBorrowRenewalConfigurationV1(tenorMarket, blueParams);
     }
 
-    function testFuzz_migrationSetAndClearParams(bytes32 src, bytes32 tgt) public {
+    function testFuzz_setAndClear_roundTrip(uint256 lltv, bool enableBlueToMidnight) public {
+        lltv = bound(lltv, 1, 1e18);
+        Market memory market = tenorMarket;
+        market.collateralParams[0].lltv = lltv;
+        MarketParams memory blue = blueParams;
+        blue.lltv = lltv;
+        bytes32 marketId = TenorMarketIdLib.toTenorMarketId(market);
+        bytes32 blueId = Id.unwrap(MarketParamsLib.id(blue));
+
         vm.prank(user);
-        bundler3.multicall(_makeCall(abi.encodeCall(adapter.migrationSetParams, (callback, src, tgt, _params()))));
-
-        (address setPolicy,,,,,) = ratifier.userParams(user, callback, src, tgt);
-        assertEq(setPolicy, ratePolicy);
+        bundler3.multicall(_setCall(market, blue, RATE, true, enableBlueToMidnight));
+        (address setPolicy,,,,,) = ratifier.userParams(user, renewalCallback, marketId, marketId);
+        (address setExitPolicy,,,,,) = ratifier.userParams(user, exitCallback, marketId, blueId);
+        (address setEntryPolicy,,,,,) = ratifier.userParams(user, entryCallback, blueId, marketId);
+        assertEq(setPolicy, config.entryRatePolicy);
+        assertEq(setExitPolicy, config.exitRatePolicy);
+        assertEq(setEntryPolicy, enableBlueToMidnight ? config.entryRatePolicy : address(0));
 
         vm.prank(user);
-        bundler3.multicall(_makeCall(abi.encodeCall(adapter.migrationClearParams, (callback, src, tgt))));
-
-        (address clearedPolicy,,,,,) = ratifier.userParams(user, callback, src, tgt);
+        bundler3.multicall(_clearCall(market, blue));
+        (address clearedPolicy,,,,,) = ratifier.userParams(user, renewalCallback, marketId, marketId);
+        (address clearedExitPolicy,,,,,) = ratifier.userParams(user, exitCallback, marketId, blueId);
+        (address clearedEntryPolicy,,,,,) = ratifier.userParams(user, entryCallback, blueId, marketId);
         assertEq(clearedPolicy, address(0));
+        assertEq(clearedExitPolicy, address(0));
+        assertEq(clearedEntryPolicy, address(0));
     }
 }
 

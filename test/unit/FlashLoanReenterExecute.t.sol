@@ -59,7 +59,7 @@ contract FlashLoanReenterExecuteTest is Fixtures {
         midnight.setIsAuthorized(address(ecrecoverRatifier), true, maker);
 
         bundler3 = deployBundler3();
-        adapter = new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+        adapter = deployTenorAdapter(bundler3, address(midnight));
 
         vm.prank(taker);
         midnight.setIsAuthorized(address(adapter), true, taker);

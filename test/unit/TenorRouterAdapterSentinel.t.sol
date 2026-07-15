@@ -80,7 +80,7 @@ contract TakeRouterAdapterSentinelTest is Fixtures {
 
         bundler3 = deployBundler3();
         MockOnBehalfForSentinel mockRenewalOnBehalf = new MockOnBehalfForSentinel();
-        adapter = new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+        adapter = deployTenorAdapter(bundler3, address(midnight));
 
         MockOracleForSentinel oracle = new MockOracleForSentinel(1e36);
 

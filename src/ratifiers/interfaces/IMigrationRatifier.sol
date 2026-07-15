@@ -78,6 +78,24 @@ interface IMigrationRatifier is IRatifier {
     /// @notice The Morpho Midnight protocol the ratifier reads from.
     function MORPHO_MIDNIGHT() external view returns (IMidnight);
 
+    /// @notice The callback contract handling borrow Midnight-to-Midnight renewals.
+    function BORROW_MIDNIGHT_RENEWAL_CALLBACK() external view returns (address);
+
+    /// @notice The callback contract handling borrow Blue-to-Midnight entries.
+    function BORROW_BLUE_TO_MIDNIGHT_CALLBACK() external view returns (address);
+
+    /// @notice The callback contract handling lend vault-to-Midnight entries.
+    function LEND_VAULT_TO_MIDNIGHT_CALLBACK() external view returns (address);
+
+    /// @notice The callback contract handling borrow Midnight-to-Blue exits.
+    function BORROW_MIDNIGHT_TO_BLUE_CALLBACK() external view returns (address);
+
+    /// @notice The callback contract handling lend Midnight-to-vault exits.
+    function LEND_MIDNIGHT_TO_VAULT_CALLBACK() external view returns (address);
+
+    /// @notice The callback contract handling lend Midnight-to-Midnight renewals.
+    function LEND_MIDNIGHT_RENEWAL_CALLBACK() external view returns (address);
+
     /// @notice Returns the effective fee config for (callback, tenorMarketId): the market-specific override if set
     /// (feeRecipient != address(0)), otherwise the action-level default keyed by tenorMarketId = bytes32(0).
     function getEffectiveFeeConfig(address callback, bytes32 tenorMarketId) external view returns (FeeConfig memory);

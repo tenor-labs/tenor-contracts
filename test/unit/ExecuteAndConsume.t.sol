@@ -103,7 +103,7 @@ contract ExecuteAndConsumeTest is Fixtures {
         midnight.setIsAuthorized(address(ecrecoverRatifier), true, maker);
 
         bundler3 = deployBundler3();
-        adapter = new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+        adapter = deployTenorAdapter(bundler3, address(midnight));
 
         CollateralParams[] memory collaterals = new CollateralParams[](1);
         collaterals[0] = CollateralParams({

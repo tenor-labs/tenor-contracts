@@ -33,7 +33,7 @@ contract MidnightAdapterCallbackGuardTest is Fixtures {
         midnight = new Midnight();
         enableDefaultLltvs(midnight);
         bundler3 = deployBundler3();
-        adapter = new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+        adapter = deployTenorAdapter(bundler3, address(midnight));
 
         CollateralParams[] memory collaterals = new CollateralParams[](0);
         emptyMarket = Market({

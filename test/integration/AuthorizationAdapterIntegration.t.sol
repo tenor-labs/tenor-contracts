@@ -31,7 +31,7 @@ contract AuthorizationAdapterIntegrationTest is Fixtures {
         enableDefaultLltvs(midnight);
         bundler3 = deployBundler3();
         authAdapter = new AuthorizationAdapter(address(bundler3), address(midnight));
-        tenorAdapter = new TenorAdapter(address(bundler3), address(midnight), makeAddr("Ratifier"));
+        tenorAdapter = deployTenorAdapter(bundler3, address(midnight));
 
         vm.prank(user);
         midnight.setIsAuthorized(address(authAdapter), true, user);
