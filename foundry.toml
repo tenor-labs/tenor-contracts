@@ -21,6 +21,7 @@ remappings = [
     "@vault-v2/=lib/vault-v2/src/",
     "@bundler3/=lib/bundler3/src/",
     "@morphoBlue/=lib/morpho-blue/src/",
+    "solady/=lib/solady/src/",
     "forge-std/=lib/forge-std/src/"
 ]
 
