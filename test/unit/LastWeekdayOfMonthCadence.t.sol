@@ -2,14 +2,15 @@
 pragma solidity ^0.8.0;
 
 import {Test, stdError} from "forge-std/Test.sol";
-import {FridayEndOfMonthCadence} from "../../src/ratifiers/policies/FridayEndOfMonthCadence.sol";
+import {LastWeekdayOfMonthCadence} from "../../src/ratifiers/policies/LastWeekdayOfMonthCadence.sol";
 import {
     SECONDS_PER_DAY,
+    FRIDAY,
     BOUNDARY_TIME_OF_DAY,
     DOMAIN_START,
     DOMAIN_END,
     FIXTURE_ENTRY_COUNT,
-    isFridayAt
+    isWeekdayAt
 } from "../helpers/CadenceTestConstants.sol";
 
 /// @dev No-dependency variant, validated against a hardcoded golden fixture rather than a Solidity reference.
@@ -18,14 +19,14 @@ import {
 /// The test therefore contains NO civil-date arithmetic of its own: it treats the file as the specification and
 /// checks the contract reproduces it exactly, so a bug common to the contract and any hand-written Solidity
 /// reference cannot hide. Coverage beyond the fixture's horizon is structural (properties, not exact values).
-contract FridayEndOfMonthCadenceTest is Test {
-    FridayEndOfMonthCadence cadence;
+contract LastWeekdayOfMonthCadenceTest is Test {
+    LastWeekdayOfMonthCadence cadence;
 
     /// @dev Hardcoded boundaries loaded from the fixture (2025-01 .. 2125-12, last Friday of month, 15:00:00 UTC).
     uint256[] internal boundaries;
 
     function setUp() public {
-        cadence = new FridayEndOfMonthCadence(BOUNDARY_TIME_OF_DAY);
+        cadence = new LastWeekdayOfMonthCadence(FRIDAY, BOUNDARY_TIME_OF_DAY);
         string[] memory lines = vm.split(vm.readFile("test/fixtures/last_friday_boundaries.txt"), "\n");
         for (uint256 i; i < lines.length; ++i) {
             if (bytes(lines[i]).length == 0) continue; // trailing newline
@@ -41,7 +42,7 @@ contract FridayEndOfMonthCadenceTest is Test {
     function test_fixtureIsWellFormed() public view {
         for (uint256 i; i < boundaries.length; ++i) {
             uint256 b = boundaries[i];
-            assertTrue(isFridayAt(b, BOUNDARY_TIME_OF_DAY), "not a Friday at 15:00:00 UTC");
+            assertTrue(isWeekdayAt(b, FRIDAY, BOUNDARY_TIME_OF_DAY), "not a Friday at 15:00:00 UTC");
             if (i > 0) {
                 uint256 gap = b - boundaries[i - 1];
                 assertTrue(gap == 28 days || gap == 35 days, "gap is not four or five weeks");
@@ -78,7 +79,7 @@ contract FridayEndOfMonthCadenceTest is Test {
         uint256 b = cadence.cadencePeriodStart(timestamp);
         assertLe(b, timestamp);
         assertEq(cadence.cadencePeriodStart(b), b); // fixed point
-        assertTrue(isFridayAt(b, BOUNDARY_TIME_OF_DAY));
+        assertTrue(isWeekdayAt(b, FRIDAY, BOUNDARY_TIME_OF_DAY));
         assertGt(b + 35 days, timestamp); // no boundary skipped
     }
 

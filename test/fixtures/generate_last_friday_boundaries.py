@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the golden fixture of last-Friday-of-month boundaries.
 
-This is an INDEPENDENT oracle for FridayEndOfMonthCadence: it derives each boundary from Python's
+This is an INDEPENDENT oracle for LastWeekdayOfMonthCadence: it derives each boundary from Python's
 standard-library `calendar`/`datetime` modules, which share no code and no algorithm with the
 contract's inlined Hinnant civil-date math. The contract is checked against these hardcoded values,
 so a bug shared between the contract and any Solidity reference cannot hide.
