@@ -8,7 +8,7 @@ via_ir = true
 optimizer = true
 optimizer_runs = 100000
 bytecode_hash = "none"
-fs_permissions = [{ access = "read", path = "./test/bin" }, { access = "read", path = "./out" }]
+fs_permissions = [{ access = "read", path = "./test/bin" }, { access = "read", path = "./out" }, { access = "read", path = "./test/fixtures" }]
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/",
     "@midnight/=lib/midnight/src/",
