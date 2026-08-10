@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 import {FridayEndOfMonthCadence} from "../../src/ratifiers/policies/FridayEndOfMonthCadence.sol";
+import {BOUNDARY_TIME_OF_DAY, DOMAIN_START, DOMAIN_END, isFridayAt} from "../helpers/CadenceTestConstants.sol";
 
 /// @dev Walks the cadence forward through time in random increments, latching any property
 /// violation into a flag rather than reverting, so the campaign reports the first counterexample
@@ -13,14 +14,6 @@ import {FridayEndOfMonthCadence} from "../../src/ratifiers/policies/FridayEndOfM
 /// boundaries in sequence, which is where an ordering inversion would surface.
 contract CadenceWalkHandler is Test {
     FridayEndOfMonthCadence public immutable CADENCE;
-
-    uint256 private constant SECONDS_PER_DAY = 86400;
-    uint256 private constant BOUNDARY_TIME_OF_DAY = 15 hours;
-    /// @dev 1970-01-30 15:00:00 UTC, the earliest input that does not revert.
-    uint256 internal constant DOMAIN_START = 29 * SECONDS_PER_DAY + BOUNDARY_TIME_OF_DAY;
-    /// @dev ~year 9000. The inline math has no artificial ceiling, so the walk domain is a chosen far-future
-    /// horizon rather than a library limit.
-    uint256 internal constant DOMAIN_END = 221846400000;
 
     uint256 public previousTimestamp;
     uint256 public previousBoundary;
@@ -49,7 +42,8 @@ contract CadenceWalkHandler is Test {
         uint256 boundary = CADENCE.cadencePeriodStart(timestamp);
 
         if (timestamp >= previousTimestamp && boundary < previousBoundary) {
-            _record(monotonicityViolated = true, timestamp, boundary);
+            monotonicityViolated = true;
+            _record(timestamp, boundary);
         }
         _checkPointProperties(timestamp, boundary);
 
@@ -71,24 +65,27 @@ contract CadenceWalkHandler is Test {
     function _checkPointProperties(uint256 timestamp, uint256 boundary) private {
         // BaseMigrationRatifier._ratifyWindow reverts if the cadence returns a future period start.
         if (boundary > timestamp) {
-            _record(futureBoundaryReturned = true, timestamp, boundary);
+            futureBoundaryReturned = true;
+            _record(timestamp, boundary);
         }
         // BaseMigrationRatifier._validateTargetMaturity accepts a maturity only if it is a fixed point.
         if (CADENCE.cadencePeriodStart(boundary) != boundary) {
-            _record(notFixedPoint = true, timestamp, boundary);
+            notFixedPoint = true;
+            _record(timestamp, boundary);
         }
-        // Monday-indexed weekday: epoch day 0 (1970-01-01) was a Thursday (index 3), Friday is 4.
-        if (boundary % SECONDS_PER_DAY != BOUNDARY_TIME_OF_DAY || (boundary / SECONDS_PER_DAY + 3) % 7 != 4) {
-            _record(notFridayAtBoundaryTime = true, timestamp, boundary);
+        if (!isFridayAt(boundary, BOUNDARY_TIME_OF_DAY)) {
+            notFridayAtBoundaryTime = true;
+            _record(timestamp, boundary);
         }
         // Consecutive last Fridays are 28 or 35 days apart, so a gap over 35 days skipped one.
         if (boundary + 35 days <= timestamp) {
-            _record(boundarySkipped = true, timestamp, boundary);
+            boundarySkipped = true;
+            _record(timestamp, boundary);
         }
     }
 
     /// @dev Keeps the inputs behind the first failure only, so later calls cannot overwrite them.
-    function _record(bool, uint256 timestamp, uint256 boundary) private {
+    function _record(uint256 timestamp, uint256 boundary) private {
         if (failingTimestamp != 0) return;
         failingTimestamp = timestamp;
         failingBoundary = boundary;
@@ -105,7 +102,7 @@ contract FridayEndOfMonthCadenceInvariantTest is Test {
     CadenceWalkHandler internal handler;
 
     function setUp() public {
-        handler = new CadenceWalkHandler(new FridayEndOfMonthCadence(15 hours));
+        handler = new CadenceWalkHandler(new FridayEndOfMonthCadence(BOUNDARY_TIME_OF_DAY));
         targetContract(address(handler));
     }
 
