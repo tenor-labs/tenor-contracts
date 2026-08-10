@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {Test} from "forge-std/Test.sol";
 import {IRenewalCadence} from "../../src/ratifiers/interfaces/IRenewalCadence.sol";
 import {FridayEndOfMonthCadence} from "../../src/ratifiers/policies/FridayEndOfMonthCadence.sol";
+import {BOUNDARY_TIME_OF_DAY, DOMAIN_START} from "../helpers/CadenceTestConstants.sol";
 
 /// @dev A fully-checked twin of FridayEndOfMonthCadence: byte-for-byte the same algorithm, with every `unchecked`
 /// block removed. It exists only as a differential oracle for the shipped (partly-unchecked) contract, proving the
@@ -58,13 +59,14 @@ contract FridayEndOfMonthCadenceUncheckedTest is Test {
     CheckedReference internal chk; // fully-checked twin
 
     function setUp() public {
-        unc = new FridayEndOfMonthCadence(15 hours);
-        chk = new CheckedReference(15 hours);
+        unc = new FridayEndOfMonthCadence(BOUNDARY_TIME_OF_DAY);
+        chk = new CheckedReference(BOUNDARY_TIME_OF_DAY);
     }
 
-    /// @dev Across the ENTIRE uint256 input domain — below the floor (both must revert), in-domain (equal value),
-    /// and extreme inputs where the final multiplication overflows (both must revert) — the unchecked contract
-    /// behaves identically to the fully-checked twin.
+    /// @dev Across the ENTIRE uint256 input domain — below the floor (both must revert) and in-domain (equal
+    /// value) — the unchecked contract behaves identically to the fully-checked twin. No third regime exists:
+    /// `boundary <= (timestamp - BOUNDARY_TIME_OF_DAY) / 1 days`, so the final `boundary * 1 days +
+    /// BOUNDARY_TIME_OF_DAY` is bounded by `timestamp` and cannot overflow for any uint256 input.
     function testFuzz_identicalBehaviour(uint256 timestamp) public view {
         _assertIdentical(address(unc), address(chk), timestamp);
     }
@@ -76,9 +78,8 @@ contract FridayEndOfMonthCadenceUncheckedTest is Test {
     }
 
     function test_revertEdgeParity() public view {
-        uint256 floor = 29 * 86400 + 15 hours; // 1970-01-30 15:00:00 UTC
-        _assertIdentical(address(unc), address(chk), floor);
-        _assertIdentical(address(unc), address(chk), floor - 1);
+        _assertIdentical(address(unc), address(chk), DOMAIN_START);
+        _assertIdentical(address(unc), address(chk), DOMAIN_START - 1);
         _assertIdentical(address(unc), address(chk), 0);
         _assertIdentical(address(unc), address(chk), type(uint256).max);
     }
