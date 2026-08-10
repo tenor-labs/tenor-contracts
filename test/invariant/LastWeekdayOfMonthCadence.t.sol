@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {FridayEndOfMonthCadence} from "../../src/ratifiers/policies/FridayEndOfMonthCadence.sol";
-import {BOUNDARY_TIME_OF_DAY, DOMAIN_START, DOMAIN_END, isFridayAt} from "../helpers/CadenceTestConstants.sol";
+import {LastWeekdayOfMonthCadence} from "../../src/ratifiers/policies/LastWeekdayOfMonthCadence.sol";
+import {FRIDAY, BOUNDARY_TIME_OF_DAY, DOMAIN_START, DOMAIN_END, isWeekdayAt} from "../helpers/CadenceTestConstants.sol";
 
 /// @dev Walks the cadence forward through time in random increments, latching any property
 /// violation into a flag rather than reverting, so the campaign reports the first counterexample
@@ -13,7 +13,7 @@ import {BOUNDARY_TIME_OF_DAY, DOMAIN_START, DOMAIN_END, isFridayAt} from "../hel
 /// fuzz tests cannot do. They sample isolated points, while a walk crosses month, year, and leap
 /// boundaries in sequence, which is where an ordering inversion would surface.
 contract CadenceWalkHandler is Test {
-    FridayEndOfMonthCadence public immutable CADENCE;
+    LastWeekdayOfMonthCadence public immutable CADENCE;
 
     uint256 public previousTimestamp;
     uint256 public previousBoundary;
@@ -29,7 +29,7 @@ contract CadenceWalkHandler is Test {
     uint256 public failingPreviousTimestamp;
     uint256 public failingPreviousBoundary;
 
-    constructor(FridayEndOfMonthCadence cadence) {
+    constructor(LastWeekdayOfMonthCadence cadence) {
         CADENCE = cadence;
     }
 
@@ -73,7 +73,7 @@ contract CadenceWalkHandler is Test {
             notFixedPoint = true;
             _record(timestamp, boundary);
         }
-        if (!isFridayAt(boundary, BOUNDARY_TIME_OF_DAY)) {
+        if (!isWeekdayAt(boundary, FRIDAY, BOUNDARY_TIME_OF_DAY)) {
             notFridayAtBoundaryTime = true;
             _record(timestamp, boundary);
         }
@@ -95,14 +95,14 @@ contract CadenceWalkHandler is Test {
 }
 
 /// @notice Stateful campaign over sequences of increasing timestamps, complementing the
-/// point-sampled fuzz tests in test/unit/FridayEndOfMonthCadence.t.sol.
+/// point-sampled fuzz tests in test/unit/LastWeekdayOfMonthCadence.t.sol.
 /// @dev fail-on-revert stays on: every handler input is bounded into the documented valid domain,
 /// so a revert is itself a failure (the cadence must not revert anywhere at or after its floor).
-contract FridayEndOfMonthCadenceInvariantTest is Test {
+contract LastWeekdayOfMonthCadenceInvariantTest is Test {
     CadenceWalkHandler internal handler;
 
     function setUp() public {
-        handler = new CadenceWalkHandler(new FridayEndOfMonthCadence(BOUNDARY_TIME_OF_DAY));
+        handler = new CadenceWalkHandler(new LastWeekdayOfMonthCadence(FRIDAY, BOUNDARY_TIME_OF_DAY));
         targetContract(address(handler));
     }
 
