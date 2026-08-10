@@ -6,7 +6,7 @@ import {IRenewalCadence} from "../interfaces/IRenewalCadence.sol";
 
 /// @title FridayEndOfMonthCadence
 /// @notice Cadence with boundaries at a fixed time of day on the last Friday of each month.
-/// @dev Periods span 28 or 35 days depending on the month, unlike the fixed-length FourWeekCadence.
+/// @dev Periods span 28 or 35 days depending on the month.
 /// @dev Reverts with an arithmetic panic for timestamps before the first boundary (1970-01-30 at
 /// BOUNDARY_TIME_OF_DAY).
 contract FridayEndOfMonthCadence is IRenewalCadence {
