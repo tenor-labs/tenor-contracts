@@ -9,7 +9,8 @@ import {
     DOMAIN_START,
     DOMAIN_END,
     FIXTURE_ENTRY_COUNT,
-    isFridayAt
+    isFridayAt,
+    isLastFridayOfMonth
 } from "../helpers/CadenceTestConstants.sol";
 
 /// @dev No-dependency variant, validated against a hardcoded golden fixture rather than a Solidity reference.
@@ -36,12 +37,16 @@ contract LastFridayOfMonthCadenceTest is Test {
     }
 
     /// @dev Guards the oracle itself: the fixture must be strictly increasing, every entry a Friday at 15:00:00
-    /// UTC, and consecutive entries 28 or 35 days apart. The weekday check is a plain epoch-day parity, not the
-    /// contract's month algorithm, so it independently catches a corrupted or mis-generated file.
+    /// UTC and the LAST Friday of its month, and consecutive entries 28 or 35 days apart. The weekday check is a
+    /// plain epoch-day parity and the last-of-month check an additive month walk, neither being the contract's
+    /// month algorithm, so both independently catch a corrupted or mis-generated file. Without the last-of-month
+    /// check a generator emitting the second-to-last Friday would produce a file that is still strictly
+    /// increasing, still all Fridays, and still 28 or 35 days apart.
     function test_fixtureIsWellFormed() public view {
         for (uint256 i; i < boundaries.length; ++i) {
             uint256 b = boundaries[i];
             assertTrue(isFridayAt(b, BOUNDARY_TIME_OF_DAY), "not a Friday at 15:00:00 UTC");
+            assertTrue(isLastFridayOfMonth(b), "not the last Friday of its month");
             if (i > 0) {
                 uint256 gap = b - boundaries[i - 1];
                 assertTrue(gap == 28 days || gap == 35 days, "gap is not four or five weeks");
@@ -70,16 +75,35 @@ contract LastFridayOfMonthCadenceTest is Test {
         assertEq(cadence.cadencePeriodStart(timestamp), _largestAtMost(timestamp));
     }
 
-    /// @dev Beyond the fixture's horizon the properties still hold (structural, not exact): a Friday at 15:00:00
-    /// UTC at or before the input, a fixed point, and no more than five weeks in the past. Unlike the Solady
-    /// variant (undefined above ~year 4.29e9), the inline math stays well-defined out to ~year 9000 here.
+    /// @dev Beyond the fixture's horizon the properties still hold (structural, not exact): the LAST Friday of a
+    /// month, at 15:00:00 UTC, at or before the input, a fixed point, and no more than five weeks in the past.
+    /// Unlike the Solady variant (undefined above ~year 4.29e9), the inline math stays well-defined out to
+    /// ~year 9000 here.
     function testFuzz_structuralBeyondFixture(uint256 timestamp) public view {
         timestamp = bound(timestamp, boundaries[boundaries.length - 1], DOMAIN_END);
-        uint256 b = cadence.cadencePeriodStart(timestamp);
-        assertLe(b, timestamp);
-        assertEq(cadence.cadencePeriodStart(b), b); // fixed point
-        assertTrue(isFridayAt(b, BOUNDARY_TIME_OF_DAY));
-        assertGt(b + 35 days, timestamp); // no boundary skipped
+        _assertStructural(timestamp);
+    }
+
+    /// @dev The same properties above the chosen ~year 9000 horizon, out to type(uint256).max. The inline math
+    /// has no ceiling (civil_from_days stays exact for any epoch day), and `cadencePeriodStart` is unchecked
+    /// end to end, so an arithmetic edge at large day counts would wrap silently rather than revert.
+    function testFuzz_structuralAtExtremeTimestamps(uint256 timestamp) public view {
+        timestamp = bound(timestamp, DOMAIN_END, type(uint256).max);
+        _assertStructural(timestamp);
+    }
+
+    /// @dev Hardcoded upper edge, the counterpart of test_epochEdges. Fuzzing samples the domain but never lands
+    /// on its extremes, and the unchecked-equivalence suite only pins that the shipped contract and its checked
+    /// twin AGREE there, which a drift shared by both would survive. These are absolute assertions at the largest
+    /// inputs the contract can be called with: it must not revert, and the boundary must be at or before the
+    /// input. That bound is what BaseMigrationRatifier._ratifyWindow relies on to not revert with
+    /// InvalidRenewalParams, and it is also what makes the final `boundary * 1 days + BOUNDARY_TIME_OF_DAY`
+    /// safe to leave unchecked.
+    function test_extremeInputsStayBoundedByInput() public view {
+        uint256[6] memory inputs = [DOMAIN_END, 2 ** 64, 2 ** 128, 2 ** 200, type(uint256).max - 1, type(uint256).max];
+        for (uint256 i; i < inputs.length; ++i) {
+            _assertStructural(inputs[i]);
+        }
     }
 
     function testFuzz_idempotent(uint256 timestamp) public view {
@@ -102,6 +126,22 @@ contract LastFridayOfMonthCadenceTest is Test {
         assertEq(cadence.cadencePeriodStart(DOMAIN_START), DOMAIN_START);
         vm.expectRevert(LastFridayOfMonthCadence.TimestampBeforeFirstBoundary.selector);
         cadence.cadencePeriodStart(DOMAIN_START - 1);
+    }
+
+    /// @dev Every property the cadence must hold outside the fixture's horizon, where no hardcoded expected value
+    /// exists. Together these pin the boundary uniquely: it is the last Friday of a month (not the second-to-last,
+    /// which satisfies all the others), at the configured time, at or before the input, and less than five weeks
+    /// before it, so no boundary in between was skipped.
+    function _assertStructural(uint256 timestamp) internal view {
+        uint256 b = cadence.cadencePeriodStart(timestamp);
+        // BaseMigrationRatifier._ratifyWindow reverts if the cadence returns a future period start.
+        assertLe(b, timestamp, "period start is after the queried timestamp");
+        // BaseMigrationRatifier._validateTargetMaturity accepts a maturity only if it is a fixed point.
+        assertEq(cadence.cadencePeriodStart(b), b, "boundary is not a fixed point");
+        assertTrue(isFridayAt(b, BOUNDARY_TIME_OF_DAY), "not a Friday at 15:00:00 UTC");
+        assertTrue(isLastFridayOfMonth(b), "not the last Friday of its month");
+        // Subtracting rather than adding 35 days keeps the check meaningful at type(uint256).max.
+        assertLt(timestamp - b, 35 days, "boundary is more than five weeks before the timestamp");
     }
 
     /// @dev Largest fixture boundary at or before `t` (t is bounded at or above the first entry). Binary search
