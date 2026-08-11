@@ -3,23 +3,20 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 import {IRenewalCadence} from "../../src/ratifiers/interfaces/IRenewalCadence.sol";
-import {LastWeekdayOfMonthCadence} from "../../src/ratifiers/policies/LastWeekdayOfMonthCadence.sol";
-import {FRIDAY, BOUNDARY_TIME_OF_DAY, DOMAIN_START} from "../helpers/CadenceTestConstants.sol";
+import {LastFridayOfMonthCadence} from "../../src/ratifiers/policies/LastFridayOfMonthCadence.sol";
+import {BOUNDARY_TIME_OF_DAY, DOMAIN_START} from "../helpers/CadenceTestConstants.sol";
 
-/// @dev A fully-checked twin of LastWeekdayOfMonthCadence: byte-for-byte the same algorithm, with every
+/// @dev A fully-checked twin of LastFridayOfMonthCadence: byte-for-byte the same algorithm, with every
 /// `unchecked` block removed AND without the FIRST_BOUNDARY guard, so its revert domain is whatever the
 /// checked arithmetic naturally produces. It exists only as a differential oracle for the shipped contract,
 /// proving two things at once: the unchecked interior changed no returned value, and the explicit guard sits
 /// exactly at the arithmetic underflow floor (call success must agree everywhere; revert reasons are expected
 /// to differ - typed error vs panic - and are deliberately not compared).
 contract CheckedReference is IRenewalCadence {
-    uint256 public immutable BOUNDARY_DAY_OF_WEEK;
     uint256 public immutable BOUNDARY_TIME_OF_DAY;
 
-    constructor(uint256 boundaryDayOfWeek, uint256 boundaryTimeOfDay) {
-        require(boundaryDayOfWeek < 7);
+    constructor(uint256 boundaryTimeOfDay) {
         require(boundaryTimeOfDay < 1 days);
-        BOUNDARY_DAY_OF_WEEK = boundaryDayOfWeek;
         BOUNDARY_TIME_OF_DAY = boundaryTimeOfDay;
     }
 
@@ -27,15 +24,15 @@ contract CheckedReference is IRenewalCadence {
         uint256 day = (timestamp - BOUNDARY_TIME_OF_DAY) / 1 days;
         (uint256 year, uint256 month, uint256 dayOfMonth) = _civilFromDays(day);
         uint256 lastDayOfMonth = day + _daysInMonth(year, month) - dayOfMonth;
-        uint256 boundary = _boundaryWeekdayOnOrBefore(lastDayOfMonth);
+        uint256 boundary = _fridayOnOrBefore(lastDayOfMonth);
         if (boundary > day) {
-            boundary = _boundaryWeekdayOnOrBefore(day - dayOfMonth);
+            boundary = _fridayOnOrBefore(day - dayOfMonth);
         }
         return boundary * 1 days + BOUNDARY_TIME_OF_DAY;
     }
 
-    function _boundaryWeekdayOnOrBefore(uint256 epochDay) private view returns (uint256) {
-        return epochDay - ((epochDay + 10 - BOUNDARY_DAY_OF_WEEK) % 7);
+    function _fridayOnOrBefore(uint256 epochDay) private pure returns (uint256) {
+        return epochDay - ((epochDay + 6) % 7);
     }
 
     function _civilFromDays(uint256 epochDay) private pure returns (uint256 year, uint256 month, uint256 dayOfMonth) {
@@ -60,13 +57,13 @@ contract CheckedReference is IRenewalCadence {
     }
 }
 
-contract LastWeekdayOfMonthCadenceUncheckedTest is Test {
-    LastWeekdayOfMonthCadence internal unc; // shipped contract (interior unchecked)
-    CheckedReference internal chk; // fully-checked twin
+contract LastFridayOfMonthCadenceUncheckedTest is Test {
+    LastFridayOfMonthCadence internal unc; // shipped contract (guarded, interior unchecked)
+    CheckedReference internal chk; // fully-checked, guardless twin
 
     function setUp() public {
-        unc = new LastWeekdayOfMonthCadence(FRIDAY, BOUNDARY_TIME_OF_DAY);
-        chk = new CheckedReference(FRIDAY, BOUNDARY_TIME_OF_DAY);
+        unc = new LastFridayOfMonthCadence(BOUNDARY_TIME_OF_DAY);
+        chk = new CheckedReference(BOUNDARY_TIME_OF_DAY);
     }
 
     /// @dev Across the ENTIRE uint256 input domain — below the floor (both must revert: guard vs underflow)
@@ -78,16 +75,10 @@ contract LastWeekdayOfMonthCadenceUncheckedTest is Test {
         _assertIdentical(address(unc), address(chk), timestamp);
     }
 
-    /// @dev Same, but for an arbitrary configured weekday and boundary time, so the equivalence does not depend
-    /// on Friday 15:00.
-    function testFuzz_identicalBehaviourAnyConfig(uint256 dayOfWeek, uint256 hour, uint256 timestamp) public {
-        dayOfWeek = bound(dayOfWeek, 0, 6);
+    /// @dev Same, but for an arbitrary configured boundary time, so the equivalence does not depend on 15:00.
+    function testFuzz_identicalBehaviourAnyHour(uint256 hour, uint256 timestamp) public {
         hour = bound(hour, 0, 1 days - 1);
-        _assertIdentical(
-            address(new LastWeekdayOfMonthCadence(dayOfWeek, hour)),
-            address(new CheckedReference(dayOfWeek, hour)),
-            timestamp
-        );
+        _assertIdentical(address(new LastFridayOfMonthCadence(hour)), address(new CheckedReference(hour)), timestamp);
     }
 
     function test_revertEdgeParity() public view {
