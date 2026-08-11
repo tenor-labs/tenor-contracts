@@ -8,11 +8,10 @@ import {IRenewalCadence} from "../interfaces/IRenewalCadence.sol";
 /// @notice Cadence with boundaries at a fixed time of day on the last occurrence of a configured weekday each
 /// month.
 /// @dev Periods span 28 or 35 days depending on the month.
-/// @dev Reverts with an arithmetic panic for timestamps before the first boundary (the last
-/// BOUNDARY_DAY_OF_WEEK of January 1970 at BOUNDARY_TIME_OF_DAY).
 contract LastWeekdayOfMonthCadence is IRenewalCadence {
     error InvalidBoundaryDay();
     error InvalidBoundaryTime();
+    error TimestampBeforeFirstBoundary();
 
     /// @dev Monday-indexed day of week (0 = Monday .. 6 = Sunday) on which boundaries fall.
     uint256 public immutable BOUNDARY_DAY_OF_WEEK;
@@ -20,32 +19,41 @@ contract LastWeekdayOfMonthCadence is IRenewalCadence {
     /// @dev Time of day at which boundaries fall in seconds past 00:00:00 UTC.
     uint256 public immutable BOUNDARY_TIME_OF_DAY;
 
+    /// @dev First returnable boundary (the last BOUNDARY_DAY_OF_WEEK of January 1970 at
+    /// BOUNDARY_TIME_OF_DAY); earlier inputs revert.
+    uint256 public immutable FIRST_BOUNDARY;
+
     constructor(uint256 boundaryDayOfWeek, uint256 boundaryTimeOfDay) {
         if (boundaryDayOfWeek >= 7) revert InvalidBoundaryDay();
         if (boundaryTimeOfDay >= 1 days) revert InvalidBoundaryTime();
         BOUNDARY_DAY_OF_WEEK = boundaryDayOfWeek;
         BOUNDARY_TIME_OF_DAY = boundaryTimeOfDay;
+        // January 1970 ended on Saturday the 31st, epoch day 30.
+        FIRST_BOUNDARY = _boundaryWeekdayOnOrBefore(30) * 1 days + boundaryTimeOfDay;
     }
 
     /// @inheritdoc IRenewalCadence
     function cadencePeriodStart(uint256 timestamp) external view returns (uint256) {
-        uint256 day = (timestamp - BOUNDARY_TIME_OF_DAY) / 1 days;
-
-        (uint256 year, uint256 month, uint256 dayOfMonth) = _civilFromDays(day);
-
-        uint256 boundary;
+        if (timestamp < FIRST_BOUNDARY) revert TimestampBeforeFirstBoundary();
+        // The guard puts every subtraction below in-domain; the fully-checked twin's differential fuzz proves
+        // value and revert parity over the entire uint256 input space.
         unchecked {
+            uint256 day = (timestamp - BOUNDARY_TIME_OF_DAY) / 1 days;
+
+            (uint256 year, uint256 month, uint256 dayOfMonth) = _civilFromDays(day);
+
             // `daysInMonth >= dayOfMonth` always, so adding the month length before subtracting cannot
             // underflow
             uint256 lastDayOfMonth = day + _daysInMonth(year, month) - dayOfMonth;
-            boundary = _boundaryWeekdayOnOrBefore(lastDayOfMonth);
+            uint256 boundary = _boundaryWeekdayOnOrBefore(lastDayOfMonth);
+            if (boundary > day) {
+                // This month's last boundary weekday is still in the future: use the previous month's, whose
+                // last day is `dayOfMonth` days before `day` and, `day` being past January 1970's last
+                // boundary weekday, no earlier than epoch day 24.
+                boundary = _boundaryWeekdayOnOrBefore(day - dayOfMonth);
+            }
+            return boundary * 1 days + BOUNDARY_TIME_OF_DAY;
         }
-        if (boundary > day) {
-            // This month's last boundary weekday is still in the future: use the previous month's, whose last
-            // day is `dayOfMonth` days before `day`.
-            boundary = _boundaryWeekdayOnOrBefore(day - dayOfMonth);
-        }
-        return boundary * 1 days + BOUNDARY_TIME_OF_DAY;
     }
 
     /// @dev Rolls `epochDay` (days since epoch) back to the boundary weekday on or before it.

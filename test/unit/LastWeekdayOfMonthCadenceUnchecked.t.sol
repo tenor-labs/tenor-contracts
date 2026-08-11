@@ -7,9 +7,11 @@ import {LastWeekdayOfMonthCadence} from "../../src/ratifiers/policies/LastWeekda
 import {FRIDAY, BOUNDARY_TIME_OF_DAY, DOMAIN_START} from "../helpers/CadenceTestConstants.sol";
 
 /// @dev A fully-checked twin of LastWeekdayOfMonthCadence: byte-for-byte the same algorithm, with every
-/// `unchecked` block removed. It exists only as a differential oracle for the shipped (partly-unchecked)
-/// contract, proving the unchecked interior changed no observable behaviour — neither the returned value nor
-/// whether a call reverts.
+/// `unchecked` block removed AND without the FIRST_BOUNDARY guard, so its revert domain is whatever the
+/// checked arithmetic naturally produces. It exists only as a differential oracle for the shipped contract,
+/// proving two things at once: the unchecked interior changed no returned value, and the explicit guard sits
+/// exactly at the arithmetic underflow floor (call success must agree everywhere; revert reasons are expected
+/// to differ - typed error vs panic - and are deliberately not compared).
 contract CheckedReference is IRenewalCadence {
     uint256 public immutable BOUNDARY_DAY_OF_WEEK;
     uint256 public immutable BOUNDARY_TIME_OF_DAY;
@@ -67,10 +69,11 @@ contract LastWeekdayOfMonthCadenceUncheckedTest is Test {
         chk = new CheckedReference(FRIDAY, BOUNDARY_TIME_OF_DAY);
     }
 
-    /// @dev Across the ENTIRE uint256 input domain — below the floor (both must revert) and in-domain (equal
-    /// value) — the unchecked contract behaves identically to the fully-checked twin. No third regime exists:
-    /// `boundary <= (timestamp - BOUNDARY_TIME_OF_DAY) / 1 days`, so the final `boundary * 1 days +
-    /// BOUNDARY_TIME_OF_DAY` is bounded by `timestamp` and cannot overflow for any uint256 input.
+    /// @dev Across the ENTIRE uint256 input domain — below the floor (both must revert: guard vs underflow)
+    /// and in-domain (equal value) — the guarded unchecked contract behaves identically to the guardless
+    /// fully-checked twin. No third regime exists: `boundary <= (timestamp - BOUNDARY_TIME_OF_DAY) / 1 days`,
+    /// so the final `boundary * 1 days + BOUNDARY_TIME_OF_DAY` is bounded by `timestamp` and cannot overflow
+    /// for any uint256 input.
     function testFuzz_identicalBehaviour(uint256 timestamp) public view {
         _assertIdentical(address(unc), address(chk), timestamp);
     }

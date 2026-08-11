@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.0;
 
-import {Test, stdError} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {LastWeekdayOfMonthCadence} from "../../src/ratifiers/policies/LastWeekdayOfMonthCadence.sol";
 import {
     SECONDS_PER_DAY,
@@ -113,12 +113,14 @@ contract LastWeekdayOfMonthCadenceTest is Test {
     }
 
     /// @dev Hardcoded epoch edge: for each weekday the first boundary the contract can return is the last such
-    /// weekday of January 1970; earlier inputs revert on arithmetic underflow.
+    /// weekday of January 1970; earlier inputs revert. The hardcoded per-weekday floors also pin the
+    /// constructor-computed FIRST_BOUNDARY.
     function test_epochEdges() public {
         for (uint256 w; w < 7; ++w) {
             uint256 first = domainStart(w);
+            assertEq(cadences[w].FIRST_BOUNDARY(), first);
             assertEq(cadences[w].cadencePeriodStart(first), first);
-            vm.expectRevert(stdError.arithmeticError);
+            vm.expectRevert(LastWeekdayOfMonthCadence.TimestampBeforeFirstBoundary.selector);
             cadences[w].cadencePeriodStart(first - 1);
         }
     }
