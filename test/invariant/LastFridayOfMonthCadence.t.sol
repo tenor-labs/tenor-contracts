@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
-import {LastWeekdayOfMonthCadence} from "../../src/ratifiers/policies/LastWeekdayOfMonthCadence.sol";
-import {BOUNDARY_TIME_OF_DAY, DOMAIN_END, domainStart, isWeekdayAt} from "../helpers/CadenceTestConstants.sol";
+import {LastFridayOfMonthCadence} from "../../src/ratifiers/policies/LastFridayOfMonthCadence.sol";
+import {BOUNDARY_TIME_OF_DAY, DOMAIN_START, DOMAIN_END, isFridayAt} from "../helpers/CadenceTestConstants.sol";
 
 /// @dev Walks the cadence forward through time in random increments, latching any property
 /// violation into a flag rather than reverting, so the campaign reports the first counterexample
@@ -13,10 +13,7 @@ import {BOUNDARY_TIME_OF_DAY, DOMAIN_END, domainStart, isWeekdayAt} from "../hel
 /// fuzz tests cannot do. They sample isolated points, while a walk crosses month, year, and leap
 /// boundaries in sequence, which is where an ordering inversion would surface.
 contract CadenceWalkHandler is Test {
-    LastWeekdayOfMonthCadence public immutable CADENCE;
-    uint256 public immutable BOUNDARY_DAY_OF_WEEK;
-    /// @dev First valid input for this weekday; the walk starts and restarts here.
-    uint256 public immutable WALK_FLOOR;
+    LastFridayOfMonthCadence public immutable CADENCE;
 
     uint256 public previousTimestamp;
     uint256 public previousBoundary;
@@ -25,24 +22,22 @@ contract CadenceWalkHandler is Test {
     bool public monotonicityViolated;
     bool public futureBoundaryReturned;
     bool public notFixedPoint;
-    bool public notBoundaryWeekdayAtTime;
+    bool public notFridayAtBoundaryTime;
     bool public boundarySkipped;
     uint256 public failingTimestamp;
     uint256 public failingBoundary;
     uint256 public failingPreviousTimestamp;
     uint256 public failingPreviousBoundary;
 
-    constructor(uint256 boundaryDayOfWeek) {
-        CADENCE = new LastWeekdayOfMonthCadence(boundaryDayOfWeek, BOUNDARY_TIME_OF_DAY);
-        BOUNDARY_DAY_OF_WEEK = boundaryDayOfWeek;
-        WALK_FLOOR = domainStart(boundaryDayOfWeek);
+    constructor(LastFridayOfMonthCadence cadence) {
+        CADENCE = cadence;
     }
 
     /// @dev Steps forward by up to 400 days (long enough to skip a whole month, so transitions are
     /// crossed both one day and one month at a time), restarting at the domain floor on overflow.
     function walk(uint256 step) external {
         uint256 timestamp = previousTimestamp == 0 || previousTimestamp > DOMAIN_END - 400 days
-            ? WALK_FLOOR
+            ? DOMAIN_START
             : previousTimestamp + bound(step, 1, 400 days);
         uint256 boundary = CADENCE.cadencePeriodStart(timestamp);
 
@@ -61,7 +56,7 @@ contract CadenceWalkHandler is Test {
     /// on randomly sampled timestamps.
     function probeBoundaryNeighbourhood() external {
         uint256 boundary = previousBoundary;
-        if (boundary <= WALK_FLOOR) return;
+        if (boundary <= DOMAIN_START) return;
         _checkPointProperties(boundary, CADENCE.cadencePeriodStart(boundary));
         _checkPointProperties(boundary + 1, CADENCE.cadencePeriodStart(boundary + 1));
         _checkPointProperties(boundary - 1, CADENCE.cadencePeriodStart(boundary - 1));
@@ -78,11 +73,11 @@ contract CadenceWalkHandler is Test {
             notFixedPoint = true;
             _record(timestamp, boundary);
         }
-        if (!isWeekdayAt(boundary, BOUNDARY_DAY_OF_WEEK, BOUNDARY_TIME_OF_DAY)) {
-            notBoundaryWeekdayAtTime = true;
+        if (!isFridayAt(boundary, BOUNDARY_TIME_OF_DAY)) {
+            notFridayAtBoundaryTime = true;
             _record(timestamp, boundary);
         }
-        // Consecutive last occurrences of a weekday are 28 or 35 days apart, so a gap over 35 days skipped one.
+        // Consecutive last Fridays are 28 or 35 days apart, so a gap over 35 days skipped one.
         if (boundary + 35 days <= timestamp) {
             boundarySkipped = true;
             _record(timestamp, boundary);
@@ -99,18 +94,16 @@ contract CadenceWalkHandler is Test {
     }
 }
 
-/// @notice Stateful campaign over sequences of increasing timestamps, one walk handler per configured weekday,
-/// complementing the point-sampled fuzz tests in test/unit/LastWeekdayOfMonthCadence.t.sol.
+/// @notice Stateful campaign over sequences of increasing timestamps, complementing the
+/// point-sampled fuzz tests in test/unit/LastFridayOfMonthCadence.t.sol.
 /// @dev fail-on-revert stays on: every handler input is bounded into the documented valid domain,
 /// so a revert is itself a failure (the cadence must not revert anywhere at or after its floor).
-contract LastWeekdayOfMonthCadenceInvariantTest is Test {
-    CadenceWalkHandler[7] internal handlers;
+contract LastFridayOfMonthCadenceInvariantTest is Test {
+    CadenceWalkHandler internal handler;
 
     function setUp() public {
-        for (uint256 w; w < 7; ++w) {
-            handlers[w] = new CadenceWalkHandler(w);
-            targetContract(address(handlers[w]));
-        }
+        handler = new CadenceWalkHandler(new LastFridayOfMonthCadence(BOUNDARY_TIME_OF_DAY));
+        targetContract(address(handler));
     }
 
     /// @dev fail-on-revert is set per invariant, not once for the contract, because Foundry binds
@@ -119,36 +112,26 @@ contract LastWeekdayOfMonthCadenceInvariantTest is Test {
     /// remaining invariants would pass without ever evaluating their property.
     /// forge-config: default.invariant.fail-on-revert = true
     function invariant_monotonicAcrossTime() public view {
-        for (uint256 w; w < 7; ++w) {
-            assertFalse(handlers[w].monotonicityViolated(), "later timestamp mapped to an earlier boundary");
-        }
+        assertFalse(handler.monotonicityViolated(), "later timestamp mapped to an earlier boundary");
     }
 
     /// forge-config: default.invariant.fail-on-revert = true
     function invariant_neverReturnsFutureBoundary() public view {
-        for (uint256 w; w < 7; ++w) {
-            assertFalse(handlers[w].futureBoundaryReturned(), "period start is after the queried timestamp");
-        }
+        assertFalse(handler.futureBoundaryReturned(), "period start is after the queried timestamp");
     }
 
     /// forge-config: default.invariant.fail-on-revert = true
     function invariant_boundariesAreFixedPoints() public view {
-        for (uint256 w; w < 7; ++w) {
-            assertFalse(handlers[w].notFixedPoint(), "boundary does not map to itself");
-        }
+        assertFalse(handler.notFixedPoint(), "boundary does not map to itself");
     }
 
     /// forge-config: default.invariant.fail-on-revert = true
-    function invariant_boundariesAreOnWeekdayAtBoundaryTime() public view {
-        for (uint256 w; w < 7; ++w) {
-            assertFalse(handlers[w].notBoundaryWeekdayAtTime(), "boundary is not the weekday at 15:00:00 UTC");
-        }
+    function invariant_boundariesAreFridaysAtBoundaryTime() public view {
+        assertFalse(handler.notFridayAtBoundaryTime(), "boundary is not a Friday at 15:00:00 UTC");
     }
 
     /// forge-config: default.invariant.fail-on-revert = true
     function invariant_noBoundarySkipped() public view {
-        for (uint256 w; w < 7; ++w) {
-            assertFalse(handlers[w].boundarySkipped(), "boundary is more than five weeks before the timestamp");
-        }
+        assertFalse(handler.boundarySkipped(), "boundary is more than five weeks before the timestamp");
     }
 }
