@@ -56,7 +56,8 @@ contract LastFridayOfMonthCadence is IRenewalCadence {
         }
     }
 
-    /// @dev Returns year/month/day triple in civil calendar. Port of Hinnant's civil_from_days
+    /// @dev Returns year/month/day triple in civil calendar. Port of Hinnant's civil_from_days, standardized
+    /// in C++20 std::chrono.
     /// @param epochDay number of days since 1970-01-01
     function _civilFromDays(uint256 epochDay) private pure returns (uint256 year, uint256 month, uint256 dayOfMonth) {
         unchecked {
