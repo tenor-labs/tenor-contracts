@@ -27,8 +27,6 @@ contract LastFridayOfMonthCadence is IRenewalCadence {
     /// @inheritdoc IRenewalCadence
     function cadencePeriodStart(uint256 timestamp) external view returns (uint256) {
         if (timestamp < FIRST_BOUNDARY) revert TimestampBeforeFirstBoundary();
-        // The guard puts every subtraction below in-domain; the fully-checked twin's differential fuzz proves
-        // value and revert parity over the entire uint256 input space.
         unchecked {
             uint256 day = (timestamp - BOUNDARY_TIME_OF_DAY) / 1 days;
 
