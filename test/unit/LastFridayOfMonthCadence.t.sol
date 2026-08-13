@@ -84,22 +84,33 @@ contract LastFridayOfMonthCadenceTest is Test {
         _assertStructural(timestamp);
     }
 
-    /// @dev The same properties above the chosen ~year 9000 horizon, out to type(uint256).max. The inline math
-    /// has no ceiling (civil_from_days stays exact for any epoch day), and `cadencePeriodStart` is unchecked
-    /// end to end, so an arithmetic edge at large day counts would wrap silently rather than revert.
+    /// @dev The same properties above the chosen ~year 9000 horizon, out to type(uint256).max. The inline math has
+    /// no ceiling (civil_from_days stays exact for any epoch day). The unchecked-equivalence suite already rules
+    /// out a silent wrap, since a wrap would make its fully-checked twin revert and break parity; what it cannot
+    /// give is the VALUE, because the twin shares the algorithm. That is what this pins.
     function testFuzz_structuralAtExtremeTimestamps(uint256 timestamp) public view {
         timestamp = bound(timestamp, DOMAIN_END, type(uint256).max);
+        _assertStructural(timestamp);
+    }
+
+    /// @dev Log-uniform companion to the test above. Bounding uniformly over [DOMAIN_END, type(uint256).max] draws
+    /// essentially every sample above 2**250, leaving the whole band between the horizon and 2**64 unexercised.
+    /// Fuzzing the magnitude first spreads the samples evenly across the exponents instead.
+    function testFuzz_structuralAcrossMagnitudes(uint256 magnitude, uint256 timestamp) public view {
+        magnitude = bound(magnitude, 38, 256); // DOMAIN_END is just under 2**38
+        uint256 upper = magnitude == 256 ? type(uint256).max : 2 ** magnitude - 1;
+        timestamp = bound(timestamp, DOMAIN_END, upper);
         _assertStructural(timestamp);
     }
 
     /// @dev Hardcoded upper edge, the counterpart of test_epochEdges. Fuzzing samples the domain but never lands
     /// on its extremes, and the unchecked-equivalence suite only pins that the shipped contract and its checked
     /// twin AGREE there, which a drift shared by both would survive. These are absolute assertions at the largest
-    /// inputs the contract can be called with: it must not revert, and the boundary must be at or before the
-    /// input. That bound is what BaseMigrationRatifier._ratifyWindow relies on to not revert with
-    /// InvalidRenewalParams, and it is also what makes the final `boundary * 1 days + BOUNDARY_TIME_OF_DAY`
+    /// inputs the contract can be called with: it must not revert, and the boundary must be the uniquely correct
+    /// one. Its being at or before the input is what BaseMigrationRatifier._ratifyWindow relies on to not revert
+    /// with InvalidRenewalParams, and it is also what makes the final `boundary * 1 days + BOUNDARY_TIME_OF_DAY`
     /// safe to leave unchecked.
-    function test_extremeInputsStayBoundedByInput() public view {
+    function test_extremeInputsStayStructurallyValid() public view {
         uint256[6] memory inputs = [DOMAIN_END, 2 ** 64, 2 ** 128, 2 ** 200, type(uint256).max - 1, type(uint256).max];
         for (uint256 i; i < inputs.length; ++i) {
             _assertStructural(inputs[i]);
@@ -130,8 +141,8 @@ contract LastFridayOfMonthCadenceTest is Test {
 
     /// @dev Every property the cadence must hold outside the fixture's horizon, where no hardcoded expected value
     /// exists. Together these pin the boundary uniquely: it is the last Friday of a month (not the second-to-last,
-    /// which satisfies all the others), at the configured time, at or before the input, and less than five weeks
-    /// before it, so no boundary in between was skipped.
+    /// which satisfies all the others), at the configured time, at or before the input, and no later boundary sits
+    /// between it and the input.
     function _assertStructural(uint256 timestamp) internal view {
         uint256 b = cadence.cadencePeriodStart(timestamp);
         // BaseMigrationRatifier._ratifyWindow reverts if the cadence returns a future period start.
@@ -142,6 +153,15 @@ contract LastFridayOfMonthCadenceTest is Test {
         assertTrue(isLastFridayOfMonth(b), "not the last Friday of its month");
         // Subtracting rather than adding 35 days keeps the check meaningful at type(uint256).max.
         assertLt(timestamp - b, 35 days, "boundary is more than five weeks before the timestamp");
+        // The five-week bound alone does NOT pin the boundary: when the preceding gap is 28 days, the PREVIOUS
+        // boundary also lands within five weeks of any input in the first week of the period, and satisfies every
+        // assertion above (it too is a last Friday, a fixed point, at or before the input). Consecutive last
+        // Fridays are exactly 28 or 35 days apart, so given the bound above the only boundary that could have
+        // been skipped is the one 28 days on; ruling it out makes the answer unique. `b + 28 days` cannot
+        // overflow here because the guard establishes `b + 28 days <= timestamp`.
+        if (timestamp - b >= 28 days) {
+            assertFalse(isLastFridayOfMonth(b + 28 days), "skipped the boundary 28 days later");
+        }
     }
 
     /// @dev Largest fixture boundary at or before `t` (t is bounded at or above the first entry). Binary search
