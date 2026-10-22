@@ -3,6 +3,9 @@ pragma solidity ^0.8.0;
 
 import {AuthorizationAdapter} from "../../src/bundler/AuthorizationAdapter.sol";
 import {TenorAdapter} from "../../src/bundler/TenorAdapter.sol";
+import {MarketMakingPolicyAdapter} from "../../src/bundler/MarketMakingPolicyAdapter.sol";
+import {MarketMakingPolicy} from "../../src/ratifiers/policies/MarketMakingPolicy.sol";
+import {IMarketMakingPolicy} from "../../src/ratifiers/interfaces/IMarketMakingPolicy.sol";
 import {Midnight} from "@midnight/Midnight.sol";
 import {enableDefaultLltvs} from "../helpers/LltvHelper.sol";
 import {IMidnight} from "@midnight/interfaces/IMidnight.sol";
@@ -113,6 +116,32 @@ contract AuthorizationAdapterIntegrationTest is Fixtures {
         assertEq(midnight.consumed(user, GROUP), CONSUMED_AMOUNT);
         assertFalse(midnight.isAuthorized(user, address(tenorAdapter)));
         assertFalse(midnight.isAuthorized(user, phantomCallback));
+        assertTrue(midnight.isAuthorized(user, address(authAdapter)));
+    }
+
+    function test_grantOpRevoke_marketMakingCurveInOneBundle() public {
+        MarketMakingPolicy policy = new MarketMakingPolicy(address(midnight));
+        MarketMakingPolicyAdapter mmAdapter = new MarketMakingPolicyAdapter(address(bundler3));
+        bytes32 tenorMarketId = keccak256("tenor-market");
+
+        IMarketMakingPolicy.CurvePoint[] memory points = new IMarketMakingPolicy.CurvePoint[](1);
+        points[0] = IMarketMakingPolicy.CurvePoint({ttm: 7 days, sellRate: 1e9, buyRate: 2e9});
+
+        Call[] memory calls = new Call[](3);
+        calls[0] = _grant(address(mmAdapter), true);
+        calls[1] = _call(
+            address(mmAdapter), abi.encodeCall(mmAdapter.marketMakingSetCurve, (address(policy), tenorMarketId, points))
+        );
+        calls[2] = _grant(address(mmAdapter), false);
+
+        vm.prank(user);
+        bundler3.multicall(calls);
+
+        (uint32 ttm, uint112 sellRate, uint112 buyRate) = policy.curves(user, tenorMarketId, 0);
+        assertEq(ttm, points[0].ttm);
+        assertEq(sellRate, points[0].sellRate);
+        assertEq(buyRate, points[0].buyRate);
+        assertFalse(midnight.isAuthorized(user, address(mmAdapter)));
         assertTrue(midnight.isAuthorized(user, address(authAdapter)));
     }
 }
