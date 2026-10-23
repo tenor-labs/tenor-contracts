@@ -216,13 +216,15 @@ Stateless, view-only contracts that cap `takeUnits` before dispatch. There is on
 
 `AuthorizationAdapter` is a separate standalone adapter for granting/revoking long-lived authorizations on Morpho Midnight on behalf of the bundle initiator.
 
+`MarketMakingPolicyAdapter` is a separate standalone adapter for writing `MarketMakingPolicy` curves (`marketMakingSetCurve`, `marketMakingClearCurve`) on behalf of the bundle initiator. The policy is passed per call. Its actions live in `MarketMakingPolicyAdapterBase`.
+
 ---
 
 ## Project Structure
 
 ```
 src/
-├── bundler/                         # Bundler3 adapters (TenorAdapter + AuthorizationAdapter)
+├── bundler/                         # Bundler3 adapters (TenorAdapter, AuthorizationAdapter, MarketMakingPolicyAdapter)
 ├── callbacks/                       # Stateless take callbacks (9 types)
 ├── factories/                       # CREATE2 deployment factories
 ├── gates/                           # Access control gates
