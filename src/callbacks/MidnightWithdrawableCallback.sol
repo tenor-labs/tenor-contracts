@@ -21,7 +21,6 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// lenders.
 /// @dev The self-authorization only satisfies take's maker-to-ratifier check: no other account is ever authorized
 /// for this contract.
-/// @dev Zero-unit fills succeed as no-ops: unlike the other callbacks, there is no ZeroAmount guard.
 /// @dev No event: Midnight's Take and Withdraw events fully describe each fill.
 /// @dev Tokens sent to this contract are not recoverable, including a take's proceeds when receiverIfTakerIsSeller is
 /// this contract.
@@ -37,8 +36,7 @@ contract MidnightWithdrawableCallback is IMidnightWithdrawableCallback {
 
     function isRatified(
         Offer memory offer,
-        bytes memory,
-        /* ratifierData */
+        bytes memory, /* ratifierData */
         address /* taker */
     )
         external
@@ -46,32 +44,25 @@ contract MidnightWithdrawableCallback is IMidnightWithdrawableCallback {
         override
         returns (bytes32)
     {
-        if (offer.maker != address(this) || offer.callback != address(this) || !offer.buy) revert NotSelf();
-        if (offer.tick != MAX_TICK) revert NotPar();
-
+        if (offer.maker != address(this) || offer.callback != address(this) || !offer.buy) {
+            revert CallbackLib.NotSelf();
+        }
+        if (offer.tick != MAX_TICK) revert CallbackLib.NotPar();
         return CALLBACK_SUCCESS;
     }
 
     function onBuy(
-        bytes32,
-        /* marketId */
+        bytes32, /* marketId */
         Market memory market,
-        uint256,
-        /* buyerAssets */
+        uint256 buyerAssets,
         uint256 units,
-        uint256,
-        /* pendingFeeIncrease */
+        uint256, /* pendingFeeIncrease */
         address buyer,
         bytes memory /* data */
-    )
-        external
-        override
-        returns (bytes32)
-    {
-        if (msg.sender != address(MORPHO_MIDNIGHT)) {
-            revert CallbackLib.OnlyMidnight();
-        }
-        if (buyer != address(this)) revert NotSelf();
+    ) external override returns (bytes32) {
+        if (msg.sender != address(MORPHO_MIDNIGHT)) revert CallbackLib.OnlyMidnight();
+        if (buyerAssets == 0 || units == 0) revert CallbackLib.ZeroAmount();
+        if (buyer != address(this)) revert CallbackLib.NotSelf();
 
         // isRatified pins the price to 1, so buyerAssets == units. Reverts if withdrawable(id) < units.
         MORPHO_MIDNIGHT.withdraw(market, units, address(this), address(this));

@@ -11,6 +11,7 @@ Each numbered file is the contract with **one** line broken; the listed rule cau
 | ✗ [5](5.sol) | buyer guard dropped: foreign offers pointing their callback here reach the withdraw | [`onBuyRevertsForOtherBuyer`](../../specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L62) (MWC-4) | [❌](https://prover.certora.com/output/2121305/91f4cc3aca9b451cbc33b0b4d5dbe22b?anonymousKey=83829c01f131d05aa5b8e8152deae84d9f421c65) |
 | ✗ [6](6.sol) | withdraws one unit short: the callback keeps 1 unit of credit after the fill | [`callbackPositionStaysZero`](../../specs/callbacks/MidnightWithdrawableCallback/many.spec#L6) (MWC-6) | [❌](https://prover.certora.com/output/2121305/7ab078ddad324ea18bfd696d0f29714d?anonymousKey=6f44c7235a602c1bfb6c165e5608b9dfa3f72043) |
 | ✗ [7](7.sol) | approves one unit extra: the callback keeps a standing approval to Midnight | [`callbackKeepsZeroAllowance`](../../specs/callbacks/MidnightWithdrawableCallback/many.spec#L22) (MWC-7) | [❌](https://prover.certora.com/output/2121305/2960b344d9bc4b6a9229462e95c707b4?anonymousKey=ff36926924f8f16b4a7d673d7a829cc8eb157183) |
+| ✗ [8](8.sol) | zero guard dropped: zero-unit fills reach the withdraw | [`onBuyRevertsOnZeroAssetsOrUnits`](../../specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L79) (MWC-14) | [❌](https://prover.certora.com/output/2121305/2cacd90956a9481ca59a4d0b8bdd8c33?anonymousKey=def98cd70db9f234a9320f475bdc8a117c2817cf) |
 
 ## Clean runs
 
@@ -18,7 +19,7 @@ Every rule verified on the unmutated source (`MWC-13` is a `satisfy` witness).
 
 | Properties | Conf | Run |
 |---|---|---|
-| MWC-1..5 | `certora/confs/callbacks/MidnightWithdrawableCallback/standalone.conf` | [✅](https://prover.certora.com/output/2121305/280c5d0298cb4dab8f38e07e6e8ae00d?anonymousKey=62716fbdb5af2e8cb5589905ac8ac9db42253e5d) |
+| MWC-1..5, MWC-14 | `certora/confs/callbacks/MidnightWithdrawableCallback/standalone.conf` | [✅](https://prover.certora.com/output/2121305/5f2dd0049f824047891e2e8967afd78a?anonymousKey=128c4d8a111cba9a3ccf888eb9fd5f7bb157c9b6) |
 | MWC-6 | `certora/confs/callbacks/MidnightWithdrawableCallback/perf/callbackPositionStaysZero.conf` | [✅](https://prover.certora.com/output/2121305/cb70bf05062645ddb23614e376dfc3cf?anonymousKey=f17f732ec279588bd125785d749a44ee48c1744e) |
 | MWC-7 | `certora/confs/callbacks/MidnightWithdrawableCallback/callbackKeepsZeroAllowance.conf` | [✅](https://prover.certora.com/output/2121305/579a64627aba41fe81c96b2c9cddeacc?anonymousKey=0ef6f70a67e0d5881ebcae937996e24ef40dd713) |
 | MWC-8 | `certora/confs/callbacks/MidnightWithdrawableCallback/callbackBalanceUnchanged.conf` | [✅](https://prover.certora.com/output/2121305/8bc04a9fed29479b9e703ea9af102dd8?anonymousKey=89fdbd877d14f5c4178e461f7011ac67efad5a86) |

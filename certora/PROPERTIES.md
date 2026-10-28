@@ -242,7 +242,7 @@ Shared utilities the callback contracts call into. The fee formulas pinned here 
 
 ### 4l. MidnightWithdrawableCallback (src/callbacks/MidnightWithdrawableCallback.sol)
 
-Standing par BUY offer: the contract is the offer's maker, ratifier and callback, and each fill withdraws the units it was just credited. All verified. MWC-6 and MWC-10 are verified under the [`perf/b10_b4.spec`](./specs/callbacks/MidnightWithdrawableCallback/perf/b10_b4.spec) overlay (health gate and settlement fee stubbed, lite `touchMarketCVL`; the plain confs time out on their arithmetic-heavy asserts), with MWC-13 re-satisfied under the same overlay. All 7 mutants in [`mutations/MidnightWithdrawableCallback`](./mutations/MidnightWithdrawableCallback/README.md) are killed. [`standalone.spec`](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec) covers the gates the take scene summarizes away (ratifier, TickLib); [`many.spec`](./specs/callbacks/MidnightWithdrawableCallback/many.spec) covers one fill on the many-market Midnight model and assumes MWC-1/5 as PROVED.
+Standing par BUY offer: the contract is the offer's maker, ratifier and callback, and each fill withdraws the units it was just credited. All verified. MWC-6 and MWC-10 are verified under the [`perf/b10_b4.spec`](./specs/callbacks/MidnightWithdrawableCallback/perf/b10_b4.spec) overlay (health gate and settlement fee stubbed, lite `touchMarketCVL`; the plain confs time out on their arithmetic-heavy asserts), with MWC-13 re-satisfied under the same overlay. All 8 mutants in [`mutations/MidnightWithdrawableCallback`](./mutations/MidnightWithdrawableCallback/README.md) are killed. [`standalone.spec`](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec) covers the gates the take scene summarizes away (ratifier, TickLib); [`many.spec`](./specs/callbacks/MidnightWithdrawableCallback/many.spec) covers one fill on the many-market Midnight model and assumes MWC-1/5 as PROVED.
 
 | ID | Property | Description |
 |----|----------|-------------|
@@ -259,6 +259,7 @@ Standing par BUY offer: the contract is the offer's maker, ratifier and callback
 | MWC-11 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L96-L112) | **Bystanders untouched** | No account other than the taker and the callback has its credit, pending fee or debt changed, in any market. |
 | MWC-12 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L118-L140) | **Seller paid withdrawable minus settlement fee** | Midnight's loan-token balance and the receiver's balance both move by exactly the withdrawable consumed minus the settlement fee accrued (receiver distinct from Midnight and the callback). |
 | MWC-13 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L144-L155) | **Non-vacuity** | A positive fill through the callback is reachable. |
+| MWC-14 [✅](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L79-L87) | **Zero-amount rejection** | `onBuy` reverts when `buyerAssets == 0` or `units == 0`, matching the other callbacks' `ZeroAmount` guard. |
 
 ---
 

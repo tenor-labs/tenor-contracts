@@ -26,8 +26,9 @@ contract MidnightWithdrawableClampTest is MidnightWithdrawableTestBase {
     }
 
     function testFuzz_maxUnitsIsExecutable(uint256 drained) public {
-        drained = bound(drained, 0, LENDER_CREDIT);
-        _take(_offer(market), drained, borrower);
+        // Leaves withdrawable nonzero: a zero clamp is skipped by the router (test_routerSkipsEmptyWithdrawable).
+        drained = bound(drained, 0, LENDER_CREDIT - 1);
+        if (drained > 0) _take(_offer(market), drained, borrower);
 
         uint256 maxUnits = clamp.maxUnits(_offer(market), "");
         assertEq(maxUnits, LENDER_CREDIT - drained, "maxUnits");
@@ -57,6 +58,7 @@ contract MidnightWithdrawableClampTest is MidnightWithdrawableTestBase {
     }
 
     function test_routerSkipsEmptyWithdrawable() public {
+        // The clamp returns 0 and the router skips the take, which would otherwise revert with ZeroAmount.
         _take(_offer(market), LENDER_CREDIT, borrower);
         vm.prank(lender);
         midnight.setIsAuthorized(address(router), true, lender);

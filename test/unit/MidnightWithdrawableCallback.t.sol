@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {stdError} from "forge-std/StdError.sol";
 import {MidnightWithdrawableTestBase} from "../helpers/MidnightWithdrawableTestBase.sol";
-import {IMidnightWithdrawableCallback} from "@callbacks/interfaces/IMidnightWithdrawableCallback.sol";
 import {CallbackLib} from "../../src/libraries/CallbackLib.sol";
 import {MidnightAllowlistGate} from "@gates/MidnightAllowlistGate.sol";
 import {IMidnight, Market, Offer} from "@midnight/interfaces/IMidnight.sol";
@@ -116,13 +115,18 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         midnight.take(_offer(market), "", LENDER_CREDIT + 1, borrower, borrower, address(0), "");
     }
 
-    function test_zeroUnitsIsNoOp() public {
-        (uint256 buyerAssets, uint256 sellerAssets) = _take(_offer(market), 0, borrower);
+    function test_zeroUnitsReverts() public {
+        vm.prank(borrower);
+        vm.expectRevert(CallbackLib.ZeroAmount.selector);
+        midnight.take(_offer(market), "", 0, borrower, borrower, address(0), "");
+    }
 
-        assertEq(buyerAssets, 0);
-        assertEq(sellerAssets, 0);
-        assertEq(midnight.withdrawable(marketId), LENDER_CREDIT);
-        _assertCallbackHoldsNothing(marketId);
+    function test_zeroUnitsOnEmptyWithdrawableReverts() public {
+        _take(_offer(market), LENDER_CREDIT, borrower);
+
+        vm.prank(lender);
+        vm.expectRevert(CallbackLib.ZeroAmount.selector);
+        midnight.take(_offer(market), "", 0, lender, lender, address(0), "");
     }
 
     function test_maxAssetsOffer() public {
@@ -193,7 +197,7 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         offer.maker = borrower;
 
         vm.prank(attacker);
-        vm.expectRevert(IMidnightWithdrawableCallback.NotSelf.selector);
+        vm.expectRevert(CallbackLib.NotSelf.selector);
         midnight.take(offer, "", 1e18, attacker, attacker, address(0), "");
     }
 
@@ -204,7 +208,7 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         offer.callback = address(0);
 
         vm.prank(borrower);
-        vm.expectRevert(IMidnightWithdrawableCallback.NotSelf.selector);
+        vm.expectRevert(CallbackLib.NotSelf.selector);
         midnight.take(offer, "", 1e18, borrower, borrower, address(0), "");
     }
 
@@ -213,7 +217,7 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         offer.buy = false;
 
         vm.prank(borrower);
-        vm.expectRevert(IMidnightWithdrawableCallback.NotSelf.selector);
+        vm.expectRevert(CallbackLib.NotSelf.selector);
         midnight.take(offer, "", 1e18, borrower, address(0), address(0), "");
     }
 
@@ -222,7 +226,7 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         offer.tick = MAX_TICK - midnight.tickSpacing(marketId);
 
         vm.prank(borrower);
-        vm.expectRevert(IMidnightWithdrawableCallback.NotPar.selector);
+        vm.expectRevert(CallbackLib.NotPar.selector);
         midnight.take(offer, "", 1e18, borrower, borrower, address(0), "");
     }
 
@@ -253,7 +257,7 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         offer.ratifier = address(acceptAllRatifier);
 
         vm.prank(borrower);
-        vm.expectRevert(IMidnightWithdrawableCallback.NotSelf.selector);
+        vm.expectRevert(CallbackLib.NotSelf.selector);
         midnight.take(offer, "", 1e18, borrower, borrower, address(0), "");
     }
 
@@ -261,6 +265,15 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         vm.prank(attacker);
         vm.expectRevert(CallbackLib.OnlyMidnight.selector);
         callback.onBuy(marketId, market, 1e18, 1e18, 0, address(callback), "");
+    }
+
+    function testFuzz_onBuyZeroAmountReverts(uint256 buyerAssets, uint256 units, bool zeroUnits) public {
+        if (zeroUnits) units = 0;
+        else buyerAssets = 0;
+
+        vm.prank(address(midnight));
+        vm.expectRevert(CallbackLib.ZeroAmount.selector);
+        callback.onBuy(marketId, market, buyerAssets, units, 0, address(callback), "");
     }
 
     /* ========== EDGE CASES ========== */

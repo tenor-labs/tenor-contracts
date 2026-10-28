@@ -73,3 +73,15 @@ rule onBuyRevertsForOtherBuyer(env e, bytes32 id, MidnightWithdrawableCallbackHa
 rule parTickPriceIsWad() {
     assert(to_mathint(parTickPrice()) == WAD(), "tickToPrice(MAX_TICK) == 1e18");
 }
+
+// MWC-14 (CLB-05): onBuy rejects zero-assets or zero-units fills.
+// FORMULA: (buyerAssets == 0 OR units == 0) => REVERTS
+rule onBuyRevertsOnZeroAssetsOrUnits(env e, bytes32 id, MidnightWithdrawableCallbackHarness.Market market,
+        uint256 buyerAssets, uint256 units, uint256 pendingFeeIncrease, address buyer, bytes data) {
+
+    // onBuy is invoked directly, so buyerAssets and units are independent -- every zero corner is exercised.
+    onBuy@withrevert(e, id, market, buyerAssets, units, pendingFeeIncrease, buyer, data);
+    bool reverted = lastReverted;
+
+    assert((buyerAssets == 0 || units == 0) => reverted, "onBuy rejects a zero-asset or zero-unit fill");
+}

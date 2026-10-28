@@ -16,10 +16,4 @@ import {IRatifier} from "@midnight/interfaces/IRatifier.sol";
 /// maxUnits = type(uint128).max or a taker-unique group, so that other fills in the group cannot exhaust their offer.
 /// @dev In a gated market, every fill (lender exits included) needs the enterGate to let this contract increase
 /// credit, and borrowers must be allowed to increase debt. Lender exits are never gated on debt.
-interface IMidnightWithdrawableCallback is IBuyCallback, IRatifier {
-    /// @notice Thrown when the offer is not this contract's BUY offer.
-    error NotSelf();
-
-    /// @notice Thrown when the offer tick is not MAX_TICK (price 1).
-    error NotPar();
-}
+interface IMidnightWithdrawableCallback is IBuyCallback, IRatifier {}
