@@ -31,6 +31,10 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// lenders.
 /// @dev The self-authorization only satisfies take's maker-to-ratifier check: no other account is ever authorized
 /// for this contract.
+/// @dev Midnight holds a standing max approval for each loan token, which saves an approve and its refund-capped
+/// reset on every fill. Midnight only pulls from this contract after onBuy accepts one of its own fills, for exactly
+/// the units just withdrawn: this contract must never implement onSell, onRepay, onLiquidate or onFlashLoan, which
+/// would let Midnight pull from it as their payer.
 /// @dev No event: Midnight's Take and Withdraw events fully describe each fill.
 /// @dev Tokens sent to this contract are not recoverable, including a take's proceeds when receiverIfTakerIsSeller is
 /// this contract.
@@ -76,7 +80,10 @@ contract MidnightWithdrawableCallback is IMidnightWithdrawableCallback {
 
         // isRatified pins the price to 1, so buyerAssets == units. Reverts if withdrawable(id) < units.
         MORPHO_MIDNIGHT.withdraw(market, units, address(this), address(this));
-        IERC20(market.loanToken).forceApprove(msg.sender, units);
+        IERC20 loanToken = IERC20(market.loanToken);
+        if (loanToken.allowance(address(this), msg.sender) < units) {
+            loanToken.forceApprove(msg.sender, type(uint256).max);
+        }
 
         return CALLBACK_SUCCESS;
     }

@@ -164,13 +164,16 @@ abstract contract MidnightWithdrawableTestBase is Test {
         return units.mulDivDown(WAD - fee, WAD);
     }
 
+    /// @dev No position, no tokens, and Midnight's standing approval is either unset or max (OZ tokens never spend
+    /// a max allowance).
     function _assertCallbackHoldsNothing(bytes32 id) internal view {
         (uint128 credit, uint128 pendingFee,,, uint128 debt,) = midnight.position(id, address(callback));
         assertEq(credit, 0, "callback credit");
         assertEq(pendingFee, 0, "callback pendingFee");
         assertEq(debt, 0, "callback debt");
         assertEq(loanToken.balanceOf(address(callback)), 0, "callback balance");
-        assertEq(loanToken.allowance(address(callback), address(midnight)), 0, "callback allowance");
+        uint256 allowance = loanToken.allowance(address(callback), address(midnight));
+        assertTrue(allowance == 0 || allowance == type(uint256).max, "callback allowance");
     }
 
     function _routerAction(uint256 units, address receiver) internal view returns (Action memory) {

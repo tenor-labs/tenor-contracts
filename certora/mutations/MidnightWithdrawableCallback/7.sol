@@ -1,11 +1,11 @@
 /* ── MUTATION MidnightWithdrawableCallback #7 ──────────────────────────────
- * @desc:   approves one unit extra: the callback keeps a standing approval to Midnight
- * @rules:  callbackKeepsZeroAllowance
- * @conf:   certora/confs/callbacks/MidnightWithdrawableCallback/callbackKeepsZeroAllowance.conf
+ * @desc:   extra approval to tx.origin: whoever triggers a first fill can later pull the callback's tokens
+ * @rules:  callbackOnlyApprovesMidnight
+ * @conf:   certora/confs/callbacks/MidnightWithdrawableCallback/callbackOnlyApprovesMidnight.conf
  * @status: killed
  * @target: src/callbacks/MidnightWithdrawableCallback.sol
- * Was:     IERC20(market.loanToken).forceApprove(msg.sender, units);
- * Now:     IERC20(market.loanToken).forceApprove(msg.sender, units + 1);
+ * Was:     loanToken.forceApprove(msg.sender, type(uint256).max);
+ * Now:     loanToken.forceApprove(msg.sender, type(uint256).max); loanToken.forceApprove(tx.origin, type(uint256).max);
  * ────────────────────────────────────────────────────────────────────*/
 
 // SPDX-License-Identifier: BUSL-1.1
@@ -31,6 +31,10 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// lenders.
 /// @dev The self-authorization only satisfies take's maker-to-ratifier check: no other account is ever authorized
 /// for this contract.
+/// @dev Midnight holds a standing max approval for each loan token, which saves an approve and its refund-capped
+/// reset on every fill. Midnight only pulls from this contract after onBuy accepts one of its own fills, for exactly
+/// the units just withdrawn: this contract must never implement onSell, onRepay, onLiquidate or onFlashLoan, which
+/// would let Midnight pull from it as their payer.
 /// @dev No event: Midnight's Take and Withdraw events fully describe each fill.
 /// @dev Tokens sent to this contract are not recoverable, including a take's proceeds when receiverIfTakerIsSeller is
 /// this contract.
@@ -76,7 +80,10 @@ contract MidnightWithdrawableCallback is IMidnightWithdrawableCallback {
 
         // isRatified pins the price to 1, so buyerAssets == units. Reverts if withdrawable(id) < units.
         MORPHO_MIDNIGHT.withdraw(market, units, address(this), address(this));
-        IERC20(market.loanToken).forceApprove(msg.sender, units + 1);  // MUTATION: approves one unit extra: the callback keeps a standing approval to Midnight
+        IERC20 loanToken = IERC20(market.loanToken);
+        if (loanToken.allowance(address(this), msg.sender) < units) {
+            loanToken.forceApprove(msg.sender, type(uint256).max); loanToken.forceApprove(tx.origin, type(uint256).max);  // MUTATION: extra approval to tx.origin: whoever triggers a first fill can later pull the callback's tokens
+        }
 
         return CALLBACK_SUCCESS;
     }

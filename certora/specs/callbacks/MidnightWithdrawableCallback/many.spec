@@ -17,9 +17,9 @@ rule callbackPositionStaysZero(env e,
     assert(ghostMiPositionDebt128[anyId][_Callback] == 0, "callback never holds debt");
 }
 
-// MWC-07 (CB-DUST-1): every fill leaves the callback with no token approval.
-// FORMULA: allowance[t][callback][s]' == 0
-rule callbackKeepsZeroAllowance(env e,
+// MWC-07 (CB-DUST-1): every fill leaves the callback approving no one but Midnight.
+// FORMULA: s != Midnight => allowance[t][callback][s]' == 0
+rule callbackOnlyApprovesMidnight(env e,
         MidnightHarness.Offer offer, bytes ratifierData, uint256 units, address taker,
         address receiverIfTakerIsSeller, address takerCallback, bytes takerCallbackData,
         address anyToken, address anySpender) {
@@ -28,8 +28,8 @@ rule callbackKeepsZeroAllowance(env e,
 
     take(e, offer, ratifierData, units, taker, receiverIfTakerIsSeller, takerCallback, takerCallbackData);
 
-    assert(ghostERC20Allowances256[anyToken][_Callback][anySpender] == 0,
-        "callback approval is fully spent within the fill");
+    assert(anySpender != _Midnight => ghostERC20Allowances256[anyToken][_Callback][anySpender] == 0,
+        "the callback only ever approves Midnight");
 }
 
 // MWC-08 (CB-DUST-1): a fill never changes the callback's token balances: it withdraws exactly what it pays.
@@ -139,13 +139,15 @@ rule sellerPaidWithdrawableMinusSettlementFee(env e,
         "the receiver gets withdrawable consumed minus the settlement fee");
 }
 
-// MWC-13 (non-vacuity): a positive fill through the callback is reachable.
-// FORMULA: satisfy(withdrawable[id]' < withdrawable[id])
+// MWC-13 (non-vacuity): a positive first fill through the callback is reachable, max approval included.
+// FORMULA: allowance[loanToken][callback][Midnight] == 0 => satisfy(withdrawable[id]' < withdrawable[id])
 rule positiveFillIsReachable(env e,
         MidnightHarness.Offer offer, bytes ratifierData, uint256 units, address taker,
         address receiverIfTakerIsSeller, address takerCallback, bytes takerCallbackData) {
 
     withdrawableTakeSetup(e, offer, units, taker, receiverIfTakerIsSeller, takerCallback);
+    require(ghostERC20Allowances256[offer.market.loanToken][_Callback][_Midnight] == 0,
+        "SCOPE: first fill, so the witness goes through the callback's approval");
 
     bytes32 id = toId(e, offer.market);
     mathint withdrawableBefore = ghostMiMarketWithdrawable128[id];

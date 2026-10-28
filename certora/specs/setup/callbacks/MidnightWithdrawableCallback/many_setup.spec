@@ -55,6 +55,8 @@ function withdrawableTakeSetup(env e,
         && ghostMiPositionPendingFee128[id][_Callback] == 0
         && ghostMiPositionDebt128[id][_Callback] == 0,
         "PROVED: MWC-06 callbackPositionStaysZero (inductive)");
-    require(forall address token. forall address spender. ghostERC20Allowances256[token][_Callback][spender] == 0,
-        "PROVED: MWC-07 callbackKeepsZeroAllowance (inductive)");
+    // Midnight's standing approval is left unconstrained: any value over-approximates 0, max, and a max being spent.
+    require(forall address token. forall address spender.
+        spender != _Midnight => ghostERC20Allowances256[token][_Callback][spender] == 0,
+        "PROVED: MWC-07 callbackOnlyApprovesMidnight (inductive)");
 }

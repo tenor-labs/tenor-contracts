@@ -10,6 +10,8 @@ import {ISellCallback} from "@midnight/interfaces/ICallbacks.sol";
 import {CALLBACK_SUCCESS, MAX_CONTINUOUS_FEE} from "@midnight/libraries/ConstantsLib.sol";
 import {UtilsLib} from "@midnight/libraries/UtilsLib.sol";
 import {MAX_TICK} from "@midnight/libraries/TickLib.sol";
+import {MockDecrementingERC20} from "../helpers/mocks/MockDecrementingERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @dev Taker whose seller callback takes the same offer again, nesting a second fill inside the first.
 contract NestedTaker is ISellCallback {
@@ -276,6 +278,55 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         callback.onBuy(marketId, market, buyerAssets, units, 0, address(callback), "");
     }
 
+    /* ========== APPROVAL ========== */
+
+    function test_firstFillApprovesMidnightMax() public {
+        assertEq(loanToken.allowance(address(callback), address(midnight)), 0, "allowance before");
+
+        _take(_offer(market), 100e18, borrower);
+
+        assertEq(loanToken.allowance(address(callback), address(midnight)), type(uint256).max, "allowance after");
+    }
+
+    function test_laterFillsSkipApprove() public {
+        _take(_offer(market), 100e18, borrower);
+
+        vm.expectCall(address(loanToken), abi.encodeWithSelector(IERC20.approve.selector), 0);
+        _take(_offer(market), 100e18, borrower);
+
+        assertEq(loanToken.allowance(address(callback), address(midnight)), type(uint256).max, "allowance");
+    }
+
+    function test_decrementingTokenReapprovesBelowUnits() public {
+        vm.etch(address(loanToken), address(new MockDecrementingERC20("", "", 18)).code);
+
+        _take(_offer(market), 100e18, borrower);
+        assertEq(
+            loanToken.allowance(address(callback), address(midnight)), type(uint256).max - 100e18, "spent allowance"
+        );
+
+        // Simulates the allowance running out after enough volume.
+        vm.prank(address(callback));
+        loanToken.approve(address(midnight), 1e18);
+
+        _take(_offer(market), 100e18, borrower);
+        assertEq(loanToken.allowance(address(callback), address(midnight)), type(uint256).max - 100e18, "reapproved");
+        assertEq(midnight.debt(marketId, borrower), 200e18, "borrower debt");
+    }
+
+    function testFuzz_anyPriorAllowanceFills(uint256 priorAllowance, uint256 units) public {
+        units = bound(units, 1, LENDER_CREDIT);
+        vm.prank(address(callback));
+        loanToken.approve(address(midnight), priorAllowance);
+
+        _take(_offer(market), units, borrower);
+
+        uint256 expected =
+            priorAllowance < units || priorAllowance == type(uint256).max ? type(uint256).max : priorAllowance - units;
+        assertEq(loanToken.allowance(address(callback), address(midnight)), expected, "allowance");
+        assertEq(midnight.debt(marketId, borrower), units, "borrower debt");
+    }
+
     /* ========== EDGE CASES ========== */
 
     function test_zeroSettlementFeeMarket() public {
@@ -316,7 +367,6 @@ contract MidnightWithdrawableCallbackTest is MidnightWithdrawableTestBase {
         _take(_offer(market), LENDER_CREDIT, borrower);
 
         assertEq(loanToken.balanceOf(address(callback)), donation, "callback balance");
-        assertEq(loanToken.allowance(address(callback), address(midnight)), 0, "callback allowance");
     }
 
     function test_continuousFeeAboveCapReverts() public {
