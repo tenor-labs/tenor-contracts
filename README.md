@@ -30,6 +30,7 @@ The codebase is organized into **standalone contracts** that interact directly w
   ┌────────┴──────────┐                                │           MidnightRenewal}          │
   │ Auto-renewal user │                                │  Supply  {Collateral, VaultShares}  │
   └───────────────────┘                                │  Withdraw{VaultShares}              │
+                                                       │  Par     {Withdrawable}             │
                                                        └─────────────────────────────────────┘
 
   ─── Standalone contracts (no dependency on above) ───
@@ -108,6 +109,7 @@ These callbacks are used directly with Morpho Midnight's `take()` and are **not*
 
 - **Deposit collateral on fill** (`MidnightSupplyCollateralCallback`) - Supply collateral arrays pro-rata on partial fills. Supports a `maxBorrowCapacityUsage` health cap. No fees.
 - **Vault as collateral** (`MidnightSupplyVaultSharesCallback`, `MidnightWithdrawVaultSharesCallback`) - `SupplyVaultShares` is a sell-side callback: when a borrower's sell offer is taken, it pulls loan tokens from the borrower, deposits them into an ERC-4626 vault, and supplies the resulting vault shares as collateral on the new obligation. `WithdrawVaultShares` is a buy-side callback: when a borrower's buy offer (early exit) is filled, it withdraws vault shares from collateral, redeems them for loan tokens, and sends them to the buyer. These are designed for Morpho Vault V2 vaults (which allocate into Morpho Blue markets) where the vault shares serve as collateral in Morpho Midnight obligations.
+- **Par offer over withdrawable** (`MidnightWithdrawableCallback`) - Standing par (price 1) BUY offer over any market's withdrawable. The contract is the offer's maker, ratifier and callback, so anyone can build the offer and take it without a signature: lenders resell credit at par and borrowers borrow at 0%, minus Midnight's settlement fee. With a nonzero settlement fee, lenders are better off calling Midnight's `withdraw` directly; the lender path is for flows that can only take offers, like router batches. Each fill credits the contract and withdraws the units right back, so it never holds a position. Borrower fills replace withdrawable assets with new debt, whose bad debt is socialized among the market's lenders.
 
 ### Design Principles
 
@@ -201,7 +203,7 @@ Abstract batch execution router that fills a user's source position across N off
 Stateless, view-only contracts that cap `takeUnits` before dispatch. There is one clamp per callback type plus generic offer-side clamps for callback-less takes:
 
 - **Migration / renewal clamps** — `BorrowMidnightRenewalClamp`, `LendMidnightRenewalClamp`, `BorrowBlueToMidnightClamp`, `LendVaultToMidnightClamp`, `BorrowMidnightToBlueClamp`, `LendMidnightToVaultClamp`
-- **Standalone-callback clamps** — `SupplyCollateralCallbackClamp` (used with `MidnightSupplyCollateralCallback`), `VaultSupplyClamp` (used with `MidnightSupplyVaultSharesCallback`), `VaultWithdrawClamp` (used with `MidnightWithdrawVaultSharesCallback`)
+- **Standalone-callback clamps** — `SupplyCollateralCallbackClamp` (used with `MidnightSupplyCollateralCallback`), `VaultSupplyClamp` (used with `MidnightSupplyVaultSharesCallback`), `VaultWithdrawClamp` (used with `MidnightWithdrawVaultSharesCallback`), `MidnightWithdrawableClamp` (used with `MidnightWithdrawableCallback`)
 - **Callback-less offer clamps** — `BuyOfferClamp` (BUY offers — buyer pays loan tokens directly to Midnight), `SellOfferClamp` (SELL offers — seller resells existing credit or borrows against onchain collateral)
 
 ---
@@ -223,7 +225,7 @@ Stateless, view-only contracts that cap `takeUnits` before dispatch. There is on
 ```
 src/
 ├── bundler/                         # Bundler3 adapters (TenorAdapter + AuthorizationAdapter)
-├── callbacks/                       # Stateless take callbacks (9 types)
+├── callbacks/                       # Stateless take callbacks (10 types)
 ├── factories/                       # CREATE2 deployment factories
 ├── gates/                           # Access control gates
 ├── libraries/                       # Shared libraries (CallbackLib, CollateralTransferLib, RouterLib, TakeMathLib, MidnightLib, etc.)
@@ -253,6 +255,7 @@ Tenor supports the same token set as Morpho Midnight: standard ERC-20s only. Tok
 The following were **outside the formal scope** of the security audits:
 
 - The clamp contracts in `src/router/clamps/` — optional, opt-in per action and inactive unless an `action.clamp` address is supplied.
+- `MidnightWithdrawableCallback` — added after the security reviews in `audits/` and the formal verification report in `certora/README.md`; its properties are tracked in [`certora/PROPERTIES.md`](certora/PROPERTIES.md) (§4l).
 - `CallbackFeeAdjuster` — fees are disabled at launch (`feeAdjuster` is pinned to `address(0)`) and this contract is not instantiated by any deployment.
 
 `TakeMathLib` is shared routing math used on the core take path and was reviewed in scope.
