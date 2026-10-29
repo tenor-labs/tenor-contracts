@@ -13,7 +13,6 @@
 - `CollateralTransferLib.sol` — collateral transfer logic
 - 6 renewal/migration callbacks (`BorrowMidnightRenewalCallback`, `BorrowBlueToMidnightCallback`, `LendVaultToMidnightCallback`, `BorrowMidnightToBlueCallback`, `LendMidnightToVaultCallback`, `LendMidnightRenewalCallback`)
 - 3 supply/withdraw callbacks (`MidnightSupplyCollateralCallback`, `MidnightSupplyVaultSharesCallback`, `MidnightWithdrawVaultSharesCallback`)
-- `MidnightWithdrawableCallback` — standing par BUY offer over a market's withdrawable (offer maker, ratifier and callback in one contract)
 - `TenorRouter.sol` — batch execution
 - `MidnightLib.sol` — view helpers for clamp health checks
 - Clamp contracts (`src/router/clamps/`)
@@ -150,7 +149,7 @@ TenorRouter reads `(buyerAssets, sellerAssets)` directly from `MORPHO_MIDNIGHT.t
 
 | ID | Property | Callback | Description |
 |----|----------|----------|-------------|
-| CB-DUST-1 [✅](./specs/callbacks/callbacks.spec#L55-L76) | **Per-call distribution** | All 10 | Every token received during a callback call is fully distributed before it returns. Balances are not isolated cross-call: tokens sent to a callback address outside an active fill are forfeited. `MidnightSupplyVaultSharesCallback.onSell` funds its deposit from `totalDeposit = sellerAssets + amountFromSeller` (the Midnight-delivered proceeds plus the optional seller top-up). The seller-funded callbacks (`BorrowBlueToMidnight`, `BorrowMidnightRenewal`, `LendMidnightToVault`, `MidnightSupplyVaultShares`) reject a misconfigured receiver: `onSell` reverts `CallbackLib.InvalidReceiver` unless `receiver == address(this)`, so the `sellerAssets` portion can never be silently sourced from a pre-existing balance on the callback. |
+| CB-DUST-1 [✅](./specs/callbacks/callbacks.spec#L55-L76) | **Per-call distribution** | All 9 | Every token received during a callback call is fully distributed before it returns. Balances are not isolated cross-call: tokens sent to a callback address outside an active fill are forfeited. `MidnightSupplyVaultSharesCallback.onSell` funds its deposit from `totalDeposit = sellerAssets + amountFromSeller` (the Midnight-delivered proceeds plus the optional seller top-up). The seller-funded callbacks (`BorrowBlueToMidnight`, `BorrowMidnightRenewal`, `LendMidnightToVault`, `MidnightSupplyVaultShares`) reject a misconfigured receiver: `onSell` reverts `CallbackLib.InvalidReceiver` unless `receiver == address(this)`, so the `sellerAssets` portion can never be silently sourced from a pre-existing balance on the callback. |
 | CB-DUST-2 [✅](./specs/callbacks/MidnightSupplyCollateralCallback/many.spec#L91-L103) | **Offer receiver must not be the callback** | SupplyCollateral | The sell offer's `receiver` must not be set to the callback address: the callback funds collateral via `transferFrom(seller)` and never spends its own balance, so loan proceeds sent to it would be permanently locked. Enforced onchain: `onSell` reverts `CallbackLib.InvalidReceiver` when `receiver == address(this)` — the inverse of the seller-funded callbacks in CB-DUST-1, which require `receiver == address(this)`. |
 
 ### 4b. Final Fill — No Collateral Dust in Source Position
@@ -199,13 +198,13 @@ TenorRouter reads `(buyerAssets, sellerAssets)` directly from `MORPHO_MIDNIGHT.t
 | CB-DIR-1 [✅](./specs/callbacks/BorrowBlueToMidnightCallback/many.spec#L31-L47) | **Exit source, open target** | Every take path only exits (reduces/closes) the source position and only opens (creates/increases) the target position. No callback may increase the source position or reduce the target position. Corollary: a source position can never "cross" — a debt position cannot become credit, and vice versa, since only reduction toward zero is allowed. "Opens" is per Midnight semantics — see CB-NET-1. |
 | CB-SAME-1 [✅](./specs/callbacks/BorrowMidnightRenewalCallback/many.spec#L291-L302) | **Source market must differ from target** | The Midnight renewal callbacks (`BorrowMidnightRenewalCallback`, `LendMidnightRenewalCallback`) revert with `SameMarket` when the decoded `sourceMarketId` equals the target `marketId`. Defense-in-depth against renewing a position into the same market. |
 | CB-NET-1 | **Target-side netting is Midnight semantics, not blocked** | A Midnight account holds one side per market: `take` nets the fill against any opposite-side position before opening a new one (`Midnight.sol` — seller credit is consumed first, only the overflow becomes debt; buyer symmetric). If a user holds an opposite-side position in the *target* market of an opening callback (BorrowBlueToMidnight, BorrowMidnightRenewal, LendVaultToMidnight, LendMidnightRenewal), the migration consumes that position instead of creating a second one. Expected by design and not blocked onchain: the netted position is exited at the offer price, which passed the ratifier's rate check. |
-| CB-PURE-1 | **Stateless execution** | All 10 callbacks are stateless. Given equivalent offers, positions, and Midnight state (fees, lossFactor, etc.), execution yields exactly the same result. Callbacks hold no storage and their output is fully determined by their inputs. |
+| CB-PURE-1 | **Stateless execution** | All 9 callbacks are stateless. Given equivalent offers, positions, and Midnight state (fees, lossFactor, etc.), execution yields exactly the same result. Callbacks hold no storage and their output is fully determined by their inputs. |
 
 ### 4g. Access Control
 
 | ID | Property | Description |
 |----|----------|-------------|
-| CB-AUTH-1 [✅](./specs/callbacks/callbacks.spec#L78-L87) | **Callbacks only usable within Midnight take** | All 10 callbacks can only be invoked as part of a Morpho Midnight take execution. They cannot be called directly outside that context. `MidnightWithdrawableCallback` is proved separately (MWC-3). |
+| CB-AUTH-1 [✅](./specs/callbacks/callbacks.spec#L78-L87) | **Callbacks only usable within Midnight take** | All 9 callbacks can only be invoked as part of a Morpho Midnight take execution. They cannot be called directly outside that context. |
 
 ### 4h. Supply Health Bounds
 
@@ -239,27 +238,6 @@ Shared utilities the callback contracts call into. The fee formulas pinned here 
 | CL-3 | **Effective-price rounding favors the user** | `sellerEffectivePrice` rounds the price UP (`mulDivUp`), so the seller's residual fee rounds DOWN. `buyerEffectivePrice` rounds the price DOWN (`mulDivDown`), so the buyer's residual fee also rounds DOWN. Both sides round against the protocol fee recipient. |
 | CL-4 | **Interest-fee rate bounded by WAD** | `sellerEffectivePrice` and `buyerEffectivePrice` revert `InvalidFeeConfig` if `feeRate > WAD`. The buyer side additionally reverts if `(WAD - price) * feeRate / WAD >= WAD` (only reachable at `price == 0 && feeRate == WAD`). |
 | CL-5 | **`findCollateral` sorted-array search** | Walks `market.collateralParams` early-exiting when the current token exceeds the target. Correctness depends on Midnight's invariant that collaterals are sorted ascending by address (same dependency captured by CTL-3, which consumes this function). |
-
-### 4l. MidnightWithdrawableCallback (src/callbacks/MidnightWithdrawableCallback.sol)
-
-Standing par BUY offer: the contract is the offer's maker, ratifier and callback, and each fill withdraws the units it was just credited. All verified. MWC-6 and MWC-10 are verified under the [`perf/b10_b4.spec`](./specs/callbacks/MidnightWithdrawableCallback/perf/b10_b4.spec) overlay (health gate and settlement fee stubbed, lite `touchMarketCVL`; the plain confs time out on their arithmetic-heavy asserts), with MWC-13 re-satisfied under the same overlay. All 9 mutants in [`mutations/MidnightWithdrawableCallback`](./mutations/MidnightWithdrawableCallback/README.md) are killed. [`standalone.spec`](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec) covers the gates the take scene summarizes away (ratifier, TickLib); [`many.spec`](./specs/callbacks/MidnightWithdrawableCallback/many.spec) covers one fill on the many-market Midnight model and assumes MWC-1/5 as PROVED.
-
-| ID | Property | Description |
-|----|----------|-------------|
-| MWC-1 [✅](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L15-L28) | **Ratifier soundness** | `isRatified` succeeds only for `maker == callback == this`, `buy`, `tick == MAX_TICK`, and then returns `CALLBACK_SUCCESS`. |
-| MWC-2 [✅](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L32-L46) | **Ratifier liveness** | Every offer of that shape is ratified, whatever the taker-chosen fields (proved with an empty `market.collateralParams`: `isRatified` never reads the market, and a CVL-passed struct array carries an unconstrained encoding that Solidity's decoder rejects). |
-| MWC-3 [✅](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L50-L57) | **Midnight-only callback** | `onBuy` reverts for any caller other than `MORPHO_MIDNIGHT`. |
-| MWC-4 [✅](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L62-L69) | **Own fills only** | `onBuy` reverts when the buyer is not this contract, so foreign offers pointing their callback here cannot settle. |
-| MWC-5 [✅](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L73-L75) | **Exact par** | `tickToPrice(MAX_TICK) == WAD`, so `buyerAssets == units` on every fill. |
-| MWC-6 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L6-L18) | **No position retained** | After any fill, the callback's credit, pending fee and debt are zero in every market. |
-| MWC-7 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L22-L33) | **Only Midnight approved** | After any fill, the callback's allowance to every spender other than Midnight is zero. Midnight holds a standing max approval per loan token, and only pulls from the callback after `onBuy` accepts one of its own fills. |
-| MWC-8 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L37-L51) | **Balance unchanged** | A fill never changes the callback's token balances (pre-existing tokens are never spent), when the taker's receiver is not the callback. |
-| MWC-9 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L55-L66) | **Exact withdrawable consumption** | A fill lowers the market's withdrawable by exactly `units`. |
-| MWC-10 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L70-L92) | **Taker shifts by exactly `units`** | With no pending slash or fee, the taker's credit decrease plus debt increase equals `units`, and debt only opens once credit is exhausted. |
-| MWC-11 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L96-L112) | **Bystanders untouched** | No account other than the taker and the callback has its credit, pending fee or debt changed, in any market. |
-| MWC-12 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L118-L140) | **Seller paid withdrawable minus settlement fee** | Midnight's loan-token balance and the receiver's balance both move by exactly the withdrawable consumed minus the settlement fee accrued (receiver distinct from Midnight and the callback). |
-| MWC-13 [✅](./specs/callbacks/MidnightWithdrawableCallback/many.spec#L144-L157) | **Non-vacuity** | A positive first fill through the callback (no prior approval to Midnight) is reachable. |
-| MWC-14 [✅](./specs/callbacks/MidnightWithdrawableCallback/standalone.spec#L79-L87) | **Zero-amount rejection** | `onBuy` reverts when `buyerAssets == 0` or `units == 0`, matching the other callbacks' `ZeroAmount` guard. |
 
 ---
 
