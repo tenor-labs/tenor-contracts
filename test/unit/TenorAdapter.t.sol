@@ -11,14 +11,20 @@ import {EventsLib} from "@midnight/libraries/EventsLib.sol";
 import {ErrorsLib} from "@bundler3/libraries/ErrorsLib.sol";
 import {IBundler3, Call} from "@bundler3/interfaces/IBundler3.sol";
 import {IMidnight, Market, CollateralParams, Offer} from "@midnight/interfaces/IMidnight.sol";
+import {IRatifier} from "@midnight/interfaces/IRatifier.sol";
 import {IdLib} from "@midnight/libraries/IdLib.sol";
 import {TickLib} from "@midnight/libraries/TickLib.sol";
-import {DEFAULT_TICK_SPACING} from "@midnight/libraries/ConstantsLib.sol";
+import {CALLBACK_SUCCESS, DEFAULT_TICK_SPACING} from "@midnight/libraries/ConstantsLib.sol";
 import {Fixtures} from "../helpers/Fixtures.sol";
-import {MockAcceptAllRatifier} from "../helpers/mocks/MockAcceptAllRatifier.sol";
 import {MockERC20} from "../helpers/mocks/MockERC20.sol";
 import {Oracle} from "../helpers/Oracle.sol";
 import {LIQUIDATION_CURSOR} from "../helpers/MaxLifLib.sol";
+
+contract RatifyAllRatifier is IRatifier {
+    function isRatified(Offer memory, bytes memory, address) external pure returns (bytes32) {
+        return CALLBACK_SUCCESS;
+    }
+}
 
 contract TenorAdapterTestBase is Fixtures {
     TenorAdapter internal adapter;
@@ -554,14 +560,14 @@ contract TenorAdapterMigrationParamsTest is TenorAdapterTestBase {
 
 abstract contract TenorAdapterPositionTestBase is TenorAdapterMarketTestBase {
     address internal maker;
-    MockAcceptAllRatifier internal ratifier;
+    RatifyAllRatifier internal ratifier;
 
     uint256 internal constant POSITION_UNITS = 50e18;
 
     function setUp() public virtual override {
         super.setUp();
         maker = makeAddr("Maker");
-        ratifier = new MockAcceptAllRatifier();
+        ratifier = new RatifyAllRatifier();
 
         vm.prank(maker);
         midnight.setIsAuthorized(address(ratifier), true, maker);

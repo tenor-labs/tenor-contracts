@@ -26,8 +26,6 @@ library CallbackLib {
     error PositionCrossing();
     error InvalidCollateral();
     error InvalidBorrowCapacityUsage();
-    error NotSelf();
-    error NotPar();
 
     /// @dev Reverts unless the vault's underlying asset matches the loan token and the vault is listed at
     /// collateralIndex in the market's collaterals array.
