@@ -10,24 +10,15 @@ import {CallbackLib} from "../libraries/CallbackLib.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title MidnightWithdrawableCallback
-/// @notice Standing par (price 1) BUY offer over any Morpho Midnight market's withdrawable. This contract is the
-/// offer's maker, ratifier and callback, so anyone can build the offer and take it without a signature.
-/// @dev Lenders resell credit at par, and borrowers borrow at 0%, gross of Midnight's settlement fee, up to
-/// MORPHO_MIDNIGHT.withdrawable(id). Router actions should use MidnightWithdrawableClamp to cap fills at that amount.
-/// @dev With a nonzero settlement fee, a lender is always better off calling MORPHO_MIDNIGHT.withdraw directly: same
-/// par exit, no settlement fee. The lender path is for flows that can only take offers, like router batches.
-/// @dev Each fill credits this contract units and withdraws them right back, so it never holds a position.
-/// @dev Borrower fills replace withdrawable assets with new debt, whose bad debt is socialized among the market's
-/// lenders.
-/// @dev The self-authorization only satisfies take's maker-to-ratifier check: no other account is ever authorized
-/// for this contract.
-/// @dev Midnight holds a standing max approval for each loan token, which saves an approve and its refund-capped
-/// reset on every fill. Midnight only pulls from this contract after onBuy accepts one of its own fills, for exactly
-/// the units just withdrawn: this contract must never implement onSell, onRepay, onLiquidate or onFlashLoan, which
-/// would let Midnight pull from it as their payer.
-/// @dev No event: Midnight's Take and Withdraw events fully describe each fill.
-/// @dev Tokens sent to this contract are not recoverable, including a take's proceeds when receiverIfTakerIsSeller is
-/// this contract.
+/// @notice Callback that funds a standing par BUY offer from a Midnight market's withdrawable, so lenders can exit and
+/// borrowers can borrow at 0% up to that amount.
+/// @dev Is the offer's maker, ratifier and callback, so anyone can build and take the offer without a signature.
+/// @dev Withdraws units from the market and lets Morpho Midnight pull them through a standing max approval of the loan
+/// token. Fills revert above withdrawable(id). Router actions should use MidnightWithdrawableClamp.
+/// @dev Takers need no authorization or approval for this contract. It authorizes only itself on Morpho Midnight, to
+/// pass take's maker-to-ratifier check.
+/// @dev Lender fills pay Midnight's settlement fee, which a direct Morpho Midnight withdraw avoids. The callback path
+/// is for flows that can only take offers, such as router batches.
 contract MidnightWithdrawableCallback is IMidnightWithdrawableCallback {
     using SafeERC20 for IERC20;
 
@@ -40,7 +31,8 @@ contract MidnightWithdrawableCallback is IMidnightWithdrawableCallback {
 
     function isRatified(
         Offer memory offer,
-        bytes memory, /* ratifierData */
+        bytes memory,
+        /* ratifierData */
         address /* taker */
     )
         external
@@ -56,15 +48,19 @@ contract MidnightWithdrawableCallback is IMidnightWithdrawableCallback {
     }
 
     function onBuy(
-        bytes32, /* marketId */
+        bytes32,
+        /* marketId */
         Market memory market,
         uint256 buyerAssets,
         uint256 units,
-        uint256, /* pendingFeeIncrease */
+        uint256,
+        /* pendingFeeIncrease */
         address buyer,
         bytes memory /* data */
     ) external override returns (bytes32) {
-        if (msg.sender != address(MORPHO_MIDNIGHT)) revert CallbackLib.OnlyMidnight();
+        if (msg.sender != address(MORPHO_MIDNIGHT)) {
+            revert CallbackLib.OnlyMidnight();
+        }
         if (buyerAssets == 0 || units == 0) revert CallbackLib.ZeroAmount();
         if (buyer != address(this)) revert CallbackLib.NotSelf();
 
